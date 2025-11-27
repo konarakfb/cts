@@ -1,4 +1,4 @@
-// manager.js
+// js/manager.js
 document.addEventListener('DOMContentLoaded', ()=>{ if (location.pathname.endsWith('manager.html')) initManager(); });
 
 async function initManager(){
@@ -9,7 +9,6 @@ async function initManager(){
     if(!metaDoc.exists) return alert('User meta missing');
     const meta = metaDoc.data();
     document.getElementById('managerInfo').textContent = `${user.email} — ${meta.building || ''} ${meta.floor || ''}`;
-    // show entries for manager's floor
     const snap = await db.collection('entries').where('floor','==',meta.floor).orderBy('timestamp','desc').get();
     const rows = [];
     snap.forEach(d => {
