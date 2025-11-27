@@ -1,3 +1,11 @@
+/* Visual polish for spacing & readability */
+.card h2, .card h3 { margin-top:0; margin-bottom:8px; color:#0b3b86; }
+.node-card { display:flex; justify-content:space-between; align-items:center; padding:10px; background:#fbfbff; border-radius:6px; margin-bottom:8px; }
+.filter-row select, .filter-row input { min-width:140px; margin-right:8px; }
+.table-wrapper { max-height:520px; overflow:auto; }
+.logo { width:52px; }
+.auth-card { padding:18px; }
+.nav-btn { display:block; width:100%; text-align:left; margin-bottom:6px; }
 :root{--blue:#005bbb;--muted:#666;--card:#fff;--bg:#f4f6f8;--border:#dcdcdc}
 *{box-sizing:border-box}
 body{font-family:Inter,Arial,Helvetica,sans-serif;margin:0;padding:12px;background:var(--bg);color:#222}
