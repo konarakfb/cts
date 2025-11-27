@@ -1,4 +1,4 @@
-// staff.js - staff entry creation and listing (last 7 days)
+// js/staff.js
 document.addEventListener('DOMContentLoaded', ()=>{ if (location.pathname.endsWith('staff.html')) initStaffPage(); });
 
 async function initStaffPage(){
@@ -8,9 +8,14 @@ async function initStaffPage(){
   auth.onAuthStateChanged(async user => {
     if (!user) return window.location = 'index.html';
     const metaDoc = await db.collection('users').doc(user.uid).get();
-    if (!metaDoc.exists) return alert('User metadata missing — contact admin');
+    if (!metaDoc.exists) {
+      alert('User metadata missing — contact admin');
+      document.getElementById('buildingSelect').innerHTML = '<option>—</option>';
+      document.getElementById('floorSelect').innerHTML = '<option>—</option>';
+      document.getElementById('counterSelect').innerHTML = '<option>—</option>';
+      return;
+    }
     const meta = metaDoc.data();
-    // show meta in selects
     document.getElementById('buildingSelect').innerHTML = `<option>${meta.building||''}</option>`;
     document.getElementById('floorSelect').innerHTML = `<option>${meta.floor||''}</option>`;
     document.getElementById('counterSelect').innerHTML = `<option>${meta.counter||''}</option>`;
@@ -62,7 +67,6 @@ function clearForm(){
 
 async function loadStaffEntries(uid){
   const container = document.getElementById('staffEntries'); container.innerHTML = '';
-  // show entries created by this user, last 7 days
   const snap = await db.collection('entries').where('createdBy','==',uid).orderBy('timestamp','desc').get();
   const cutoff = new Date(Date.now() - 7*24*60*60*1000).toISOString().slice(0,10);
   const rows = [];
