@@ -1,0 +1,3 @@
+/* admin extra styles (kept minimal) */
+.nodes-row{display:flex;gap:8px;flex-wrap:wrap}
+.node-card{border:1px solid #eee;padding:8px;border-radius:6px;margin:6px 0;display:flex;justify-content:space-between;align-items:center}
