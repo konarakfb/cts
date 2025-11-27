@@ -2,240 +2,699 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <title>Konarak F&B — Dry Store (All-in-one)</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Konarak F&B — Prototype</title>
-  <!-- Bootstrap 5 -->
+  <!-- Bootstrap CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
-    :root{
-      --sidebar-bg:#0f2b3d;
-      --accent:#1f6feb;
-      --muted:#6c757d;
-    }
-    body{font-family:Inter,Segoe UI,Arial,Helvetica,sans-serif;background:#f3f6f9;}
-    .app-sidebar{
-      width:240px;
-      min-height:100vh;
-      background:var(--sidebar-bg);
-      color:#fff;
-      position:fixed;
-      left:0;top:0;padding:22px;
-    }
-    .app-sidebar .logo{display:block;margin-bottom:18px}
-    .app-sidebar .nav-link{color:rgba(255,255,255,0.92);padding:10px 12px;border-radius:8px}
-    .app-sidebar .nav-link:hover{background:rgba(255,255,255,0.04);}
-    .app-main{margin-left:260px;padding:24px;}
-    .topbar{display:flex;align-items:center;gap:12px;margin-bottom:18px}
-    .card-guest{background:#fff;border-radius:10px;padding:18px;box-shadow:0 6px 20px rgba(20,30,60,0.06)}
-    /* users table style */
-    .users-table th{background:#fbfcfd}
-    /* counters list */
-    .node-list .card{margin-bottom:10px}
-    @media (max-width: 900px){
-      .app-sidebar{position:relative;width:100%;min-height:auto;padding:12px;display:flex;gap:12px;align-items:center}
-      .app-main{margin-left:0;padding:12px}
-      .sidebar-collapse{display:block}
-    }
+    :root{--nav-bg:#0f3746;--nav-text:#e6f0f5;--accent:#0d6efd}
+    body{font-family:Inter,Segoe UI,Arial,Helvetica,sans-serif;background:#f6f8fa;margin:0;padding:0}
+    .sidebar{width:260px;min-height:100vh;background:var(--nav-bg);color:var(--nav-text);position:fixed;left:0;top:0;padding:20px}
+    .sidebar .logo{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+    .sidebar .logo img{height:34px}
+    .sidebar .navbtn{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;color:var(--nav-text);text-decoration:none;border:none;background:transparent;width:100%;text-align:left}
+    .sidebar .navbtn:hover,.sidebar .navbtn.active{background:rgba(255,255,255,0.04)}
+    main.content{margin-left:260px;padding:22px}
+    @media (max-width:880px){ .sidebar{position:relative;width:100%;height:auto;min-height:0} main.content{margin-left:0;padding:12px} .sidebar .navlist{display:flex;flex-wrap:wrap;gap:6px} }
+    .card-panel{border-radius:12px;box-shadow:0 6px 20px rgba(31,45,61,0.06)}
+    .small-muted{color:#666;font-size:13px}
+    .table-wrapper{overflow:auto}
+    /* PDF preview styles (hidden) */
+    #pdfPreview{display:none}
+    /* ensure tables wrap nicely on mobile */
+    table.table td, table.table th{vertical-align:middle;white-space:nowrap}
   </style>
 </head>
 <body>
+  <!-- Sidebar -->
+  <aside class="sidebar d-flex flex-column">
+    <div class="logo"><img src="" id="brandLogo" alt="logo" /><strong>konarak</strong></div>
 
-  <!-- SIDEBAR -->
-  <aside class="app-sidebar d-flex flex-column">
-    <img src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='36'%3E%3Crect width='100%25' height='100%25' fill='%230f2b3d'/%3E%3Ctext x='10' y='22' font-family='Arial' font-size='16' fill='%23fff'%3Ekonarak%3C/text%3E%3C/svg%3E"
-         alt="logo" class="logo" width="140" height="36">
-
-    <nav class="nav flex-column mt-2">
-      <a class="nav-link" href="#" data-page="home">🏠 Home</a>
-      <a class="nav-link" href="#" data-page="data">📊 Data</a>
-      <a class="nav-link active" href="#" data-page="users">👥 Users</a>
-      <a class="nav-link" href="#" data-page="buildings">🏢 Buildings</a>
-      <a class="nav-link" href="#" data-page="floors">📐 Floors</a>
-      <a class="nav-link" href="#" data-page="counters">🔖 Counters</a>
-      <a class="nav-link" href="#" data-page="entries">🗂 Entries</a>
-      <a class="nav-link text-danger mt-3" href="#" id="logoutBtn">Logout</a>
+    <nav class="nav flex-column gap-1">
+      <button class="navbtn active" data-target="homeView">🏠 Home</button>
+      <button class="navbtn" data-target="dataView">📊 Data</button>
+      <button class="navbtn" data-target="usersView">👥 Users</button>
+      <button class="navbtn" data-target="buildingsView">🏢 Buildings</button>
+      <button class="navbtn" data-target="floorsView">📐 Floors</button>
+      <button class="navbtn" data-target="countersView">🍽 Counters</button>
+      <button class="navbtn" data-target="entriesView">📁 Entries</button>
+      <div style="flex:1"></div>
+      <button class="navbtn" id="logoutBtn" style="color:#ffbbbb">Logout</button>
     </nav>
   </aside>
 
-  <!-- MAIN -->
-  <main class="app-main">
-    <div class="topbar">
+  <!-- Main content -->
+  <main class="content">
+    <!-- Header -->
+    <div class="d-flex align-items-center justify-content-between mb-3">
       <div>
-        <h3 class="mb-0">Admin Dashboard</h3>
-        <small class="text-muted">Konarak F&B — Dry Store</small>
+        <h3 id="pageTitle">Admin Dashboard</h3>
+        <div class="small-muted">Konarak F&B — Dry Store</div>
       </div>
-      <div class="ms-auto d-flex align-items-center gap-2">
-        <span class="badge bg-light text-dark">Admin</span>
-        <button class="btn btn-outline-secondary btn-sm">Settings</button>
+      <div>
+        <span class="badge bg-light text-dark" id="roleBadge">Admin</span>
+        <span id="userEmail" class="ms-2 small-muted"></span>
       </div>
     </div>
 
-    <!-- PAGES CONTAINER -->
-    <div id="pages">
+    <!-- Login view (simple) -->
+    <div id="loginView" class="card card-panel p-4 mb-4" style="max-width:520px;">
+      <h5>Login</h5>
+      <div class="mb-2">
+        <label class="form-label small-muted">Email</label>
+        <input id="loginEmail" class="form-control" placeholder="you@company.com" />
+      </div>
+      <div class="mb-2">
+        <label class="form-label small-muted">Password</label>
+        <input id="loginPassword" type="password" class="form-control" placeholder="Password" />
+      </div>
+      <div class="d-flex gap-2">
+        <button id="btnLogin" class="btn btn-primary">Login</button>
+        <button id="btnShowDebug" class="btn btn-outline-secondary">Debug</button>
+      </div>
+      <pre id="loginError" class="text-danger mt-2" style="display:none"></pre>
+    </div>
 
-      <!-- HOME -->
-      <section id="home" class="page" style="">
-        <div class="row g-3">
-          <div class="col-md-4"><div class="card-guest"><h5>Totals</h5><p class="text-muted mb-0">Buildings: <strong>1</strong></p><p class="text-muted mb-0">Floors: <strong>3</strong></p><p class="text-muted mb-0">Counters: <strong>10</strong></p></div></div>
-          <div class="col-md-8"><div class="card-guest"><h5>Alerts</h5><p class="text-muted">No expiring items in next 7 days.</p></div></div>
+    <!-- Home View -->
+    <div id="homeView" class="view card card-panel p-4 mb-4">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h4>Admin — Quick totals</h4>
+          <div class="small-muted">Overview of building / floor / counter totals</div>
         </div>
-      </section>
-
-      <!-- DATA -->
-      <section id="data" class="page d-none">
-        <div class="card-guest mb-3">
-          <div class="row g-2 align-items-end">
-            <div class="col-md-3"><label class="form-label">Building</label><select class="form-select"><option>All</option></select></div>
-            <div class="col-md-3"><label class="form-label">Floor</label><select class="form-select"><option>All</option></select></div>
-            <div class="col-md-3"><label class="form-label">Counter</label><select class="form-select"><option>All</option></select></div>
-            <div class="col-md-3"><label class="form-label">&nbsp;</label><div class="d-flex gap-2"><button class="btn btn-primary">Filter</button><button class="btn btn-outline-secondary">Export PDF</button></div></div>
+      </div>
+      <div class="row mt-3">
+        <div class="col-md-4">
+          <div class="p-3 bg-white card-panel">
+            <h6>Totals</h6>
+            <div id="totalsBlock">Loading...</div>
           </div>
         </div>
-
-        <div class="card-guest">
-          <h5>Results</h5>
-          <div class="table-responsive">
-            <table class="table table-sm">
-              <thead><tr><th>Date</th><th>Floor</th><th>Counter</th><th>Item</th><th>Qty</th><th>Remarks</th></tr></thead>
-              <tbody><tr><td>2025-11-27</td><td>1st</td><td>kitchen</td><td>Flour</td><td>20</td><td>-</td></tr></tbody>
-            </table>
+        <div class="col-md-8">
+          <div class="p-3 bg-white card-panel">
+            <h6>Recent Entries (admin view)</h6>
+            <div id="recentEntries" class="table-wrapper"></div>
           </div>
         </div>
-      </section>
+      </div>
+    </div>
 
-      <!-- USERS -->
-      <section id="users" class="page">
-        <div class="d-flex align-items-center mb-3 gap-3">
-          <h4 class="mb-0">Users</h4>
-          <button class="btn btn-primary btn-sm" id="btnCreateUser">+ Create User</button>
-          <div class="ms-auto text-muted">Logged in as <strong>admin@konarak.com</strong></div>
+    <!-- Data View -->
+    <div id="dataView" class="view hidden card card-panel p-4 mb-4">
+      <h5>Data - Filter & Export</h5>
+      <div class="row g-2 align-items-end">
+        <div class="col-md-3"><label class="small-muted">Building</label><select id="filterBuilding" class="form-select"><option value="all">All</option></select></div>
+        <div class="col-md-3"><label class="small-muted">Floor</label><select id="filterFloor" class="form-select"><option value="all">All</option></select></div>
+        <div class="col-md-3"><label class="small-muted">Counter</label><select id="filterCounter" class="form-select"><option value="all">All</option></select></div>
+        <div class="col-md-3"><label class="small-muted">Date from</label><input id="filterFrom" type="date" class="form-control" /></div>
+        <div class="col-md-3"><label class="small-muted">Date to</label><input id="filterTo" type="date" class="form-control" /></div>
+        <div class="col-md-6 d-flex gap-2 mt-2">
+          <button id="btnApplyFilter" class="btn btn-primary">Apply</button>
+          <button id="btnExportPdf" class="btn btn-outline-secondary">Export PDF</button>
+          <button id="btnExportXlsx" class="btn btn-outline-secondary">Export Excel</button>
         </div>
+      </div>
 
-        <div class="card-guest">
-          <div class="table-responsive">
-            <table class="table users-table align-middle">
-              <thead><tr><th>Username</th><th>Email</th><th>Role</th><th>Building</th><th>Floor</th><th>Counter</th><th>Actions</th></tr></thead>
-              <tbody>
-                <tr>
-                  <td>Admin</td>
-                  <td>admin@konarak.com</td>
-                  <td>Admin</td>
-                  <td>A</td>
-                  <td>1st</td>
-                  <td>kitchen</td>
-                  <td><button class="btn btn-outline-danger btn-sm">Delete</button></td>
-                </tr>
-                <tr>
-                  <td>Counter 1</td>
-                  <td>counter1@konarak.com</td>
-                  <td>Counter</td>
-                  <td>A</td>
-                  <td>6th</td>
-                  <td>tea</td>
-                  <td><button class="btn btn-outline-danger btn-sm">Delete</button></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
+      <div class="mt-3 table-wrapper">
+        <table id="dataTable" class="table table-striped">
+          <thead>
+            <tr>
+              <th>Date</th><th>Building</th><th>Floor</th><th>Counter</th><th>Item</th><th>Batch</th><th>Receiving</th><th>Mfg</th><th>Expiry</th><th>Shelf</th><th>Qty</th><th>Remarks</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
 
-      <!-- BUILDINGS -->
-      <section id="buildings" class="page d-none">
-        <div class="card-guest">
-          <h5>Create Building</h5>
-          <div class="row g-2 align-items-end">
-            <div class="col-md-4"><input class="form-control" placeholder="Building name"></div>
-            <div class="col-md-2"><button class="btn btn-primary">Create</button></div>
-          </div>
-        </div>
-      </section>
+    <!-- Users View -->
+    <div id="usersView" class="view hidden card card-panel p-4 mb-4">
+      <h5>Users</h5>
+      <div class="row g-2">
+        <div class="col-md-3"><input id="newUserEmail" placeholder="email" class="form-control" /></div>
+        <div class="col-md-3"><input id="newUserPassword" placeholder="password" type="password" class="form-control" /></div>
+        <div class="col-md-2"><select id="newUserRole" class="form-select"><option value="counter">counter</option><option value="manager">manager</option></select></div>
+        <div class="col-md-2"><select id="newUserBuilding" class="form-select"><option value="">Building</option></select></div>
+        <div class="col-md-2"><select id="newUserFloor" class="form-select"><option value="">Floor</option></select></div>
+        <div class="col-md-2"><select id="newUserCounter" class="form-select"><option value="">Counter</option></select></div>
+        <div class="col-md-2"><button id="btnCreateUser" class="btn btn-primary">Create User</button></div>
+      </div>
+      <div class="mt-3" id="usersList"></div>
+    </div>
 
-      <!-- FLOORS -->
-      <section id="floors" class="page d-none">
-        <div class="card-guest">
-          <h5>Create Floor</h5>
-          <div class="row g-2 align-items-end">
-            <div class="col-md-3"><select class="form-select"><option>A</option></select></div>
-            <div class="col-md-4"><input class="form-control" placeholder="Floor name (e.g. 1st)"></div>
-            <div class="col-md-2"><button class="btn btn-primary">Create</button></div>
-          </div>
-        </div>
-      </section>
+    <!-- Buildings / Floors / Counters Views -->
+    <div id="buildingsView" class="view hidden card card-panel p-4 mb-4">
+      <h5>Buildings</h5>
+      <div class="row g-2">
+        <div class="col-md-4"><input id="newBuilding" placeholder="Building name" class="form-control" /></div>
+        <div class="col-md-2"><button id="createBuilding" class="btn btn-primary">Create</button></div>
+      </div>
+      <div class="mt-3" id="buildingsList"></div>
+    </div>
 
-      <!-- COUNTERS -->
-      <section id="counters" class="page d-none">
-        <div class="card-guest">
-          <h5>Create Counter</h5>
-          <div class="row g-2 align-items-end">
-            <div class="col-md-3"><select class="form-select"><option>A</option></select></div>
-            <div class="col-md-3"><select class="form-select"><option>1st</option></select></div>
-            <div class="col-md-4"><input class="form-control" placeholder="Counter name (e.g. kitchen)"></div>
-            <div class="col-md-2"><button class="btn btn-primary">Create</button></div>
-          </div>
-        </div>
+    <div id="floorsView" class="view hidden card card-panel p-4 mb-4">
+      <h5>Floors</h5>
+      <div class="row g-2">
+        <div class="col-md-4"><select id="selBuildingForFloor" class="form-select"></select></div>
+        <div class="col-md-4"><input id="newFloor" placeholder="Floor name" class="form-control" /></div>
+        <div class="col-md-2"><button id="createFloor" class="btn btn-primary">Create Floor</button></div>
+      </div>
+      <div class="mt-3" id="floorsList"></div>
+    </div>
 
-        <div class="mt-3 node-list">
-          <div class="card p-2"><strong>1st — kitchen</strong> <span class="text-muted small">A</span></div>
-          <div class="card p-2"><strong>1st — tea</strong> <span class="text-muted small">A</span></div>
-        </div>
-      </section>
+    <div id="countersView" class="view hidden card card-panel p-4 mb-4">
+      <h5>Counters</h5>
+      <div class="row g-2">
+        <div class="col-md-3"><select id="selBuildingForCounter" class="form-select"></select></div>
+        <div class="col-md-3"><select id="selFloorForCounter" class="form-select"></select></div>
+        <div class="col-md-3"><input id="newCounter" placeholder="Counter name" class="form-control" /></div>
+        <div class="col-md-2"><button id="createCounter" class="btn btn-primary">Create Counter</button></div>
+      </div>
+      <div class="mt-3" id="countersList"></div>
+    </div>
 
-      <!-- ENTRIES -->
-      <section id="entries" class="page d-none">
-        <div class="card-guest">
-          <h5>Entries</h5>
-          <p class="text-muted">Filter and export entries per counter/date.</p>
-        </div>
-      </section>
+    <!-- Entries view for admin -->
+    <div id="entriesView" class="view hidden card card-panel p-4 mb-4">
+      <h5>Entries</h5>
+      <p class="small-muted">Select filters in the Data view to show entries here too.</p>
+      <div id="entriesList"></div>
+    </div>
 
-      <!-- STAFF preview (not in sidebar but accessible via script) -->
-      <section id="staff" class="page d-none">
-        <div class="row">
-          <div class="col-md-5">
-            <div class="card-guest">
-              <h5>Dry Store Entry</h5>
-              <label class="form-label">Item</label><input class="form-control mb-2" id="item" />
-              <label class="form-label">Batch No</label><input class="form-control mb-2" id="batch" />
-              <label class="form-label">Receiving Date</label><input class="form-control mb-2" type="date" id="recv" />
-              <label class="form-label">Mfg Date</label><input class="form-control mb-2" type="date" id="mfg" />
-              <label class="form-label">Expiry Date</label><input class="form-control mb-2" type="date" id="exp" />
-              <label class="form-label">Shelf Life</label><input class="form-control mb-2" id="shelf" />
-              <label class="form-label">Stock Qty</label><input class="form-control mb-2" id="qty" />
-              <label class="form-label">Remarks</label><input class="form-control mb-2" id="remarks" />
-              <div class="d-grid"><button class="btn btn-success">Save</button></div>
-            </div>
-          </div>
-          <div class="col-md-7">
-            <div class="card-guest">
-              <h5>Your Entries (last 7 days)</h5>
-              <div class="table-responsive"><table class="table"><thead><tr><th>Date</th><th>Item</th><th>Batch</th><th>Qty</th></tr></thead><tbody><tr><td>2025-11-27</td><td>Flour</td><td>F-123</td><td>20</td></tr></tbody></table></div>
-            </div>
-          </div>
-        </div>
-      </section>
+    <!-- Staff form (separate area) -->
+    <div id="staffBlock" class="card card-panel p-3 mb-4 hidden">
+      <h5>Staff — Add Dry Store Entry</h5>
+      <div class="row g-2">
+        <div class="col-md-3"><label class="small-muted">Building</label><select id="staffBuilding" class="form-select" disabled></select></div>
+        <div class="col-md-3"><label class="small-muted">Floor</label><select id="staffFloor" class="form-select" disabled></select></div>
+        <div class="col-md-3"><label class="small-muted">Counter</label><select id="staffCounter" class="form-select" disabled></select></div>
+      </div>
+      <div class="row g-2 mt-2">
+        <div class="col-md-4"><input id="item" placeholder="Item" class="form-control" /></div>
+        <div class="col-md-2"><input id="batch" placeholder="Batch No" class="form-control" /></div>
+        <div class="col-md-2"><input id="receivingDate" type="date" class="form-control" /></div>
+        <div class="col-md-2"><input id="mfgDate" type="date" class="form-control" /></div>
+        <div class="col-md-2"><input id="expiryDate" type="date" class="form-control" /></div>
+      </div>
+      <div class="row g-2 mt-2">
+        <div class="col-md-3"><input id="shelfLife" placeholder="Shelf Life" class="form-control" /></div>
+        <div class="col-md-3"><input id="qty" type="number" placeholder="Stock Qty" class="form-control" /></div>
+        <div class="col-md-6"><input id="remarks" placeholder="Remarks" class="form-control" /></div>
+      </div>
+      <div class="mt-2"><button id="saveEntry" class="btn btn-success">Save Entry</button></div>
 
-    </div><!-- pages -->
+      <h6 class="mt-3">Your last 7 days entries</h6>
+      <div id="staffEntriesList" class="table-wrapper"></div>
+    </div>
 
+    <pre id="debugLog" class="card card-panel p-2 mt-3" style="max-height:160px;overflow:auto;display:none"></pre>
   </main>
 
-  <script>
-    // basic page routing for prototype
-    document.querySelectorAll('.app-sidebar .nav-link').forEach(a=>{
-      a.addEventListener('click', ev=>{
-        ev.preventDefault();
-        document.querySelectorAll('.app-sidebar .nav-link').forEach(n=>n.classList.remove('active'));
-        a.classList.add('active');
-        const p = a.dataset.page;
-        document.querySelectorAll('.page').forEach(el=>el.classList.add('d-none'));
-        const sel = document.getElementById(p);
-        if(sel) sel.classList.remove('d-none');
-      });
-    });
+  <!-- Scripts -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-    // default show 'users'
-    document.querySelector('[data-page="users"]').click();
+  <script>
+/* ===========================
+   Firebase config - use your values
+   =========================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyDFBaRe6jDJwbSoRMpGZiQUB8PNXak0o8E",
+  authDomain: "konarak-dry-store.firebaseapp.com",
+  projectId: "konarak-dry-store",
+  storageBucket: "konarak-dry-store.firebasestorage.app",
+  messagingSenderId: "796844296062",
+  appId: "1:796844296062:web:addf9694564505f914552f"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+/* -------------------------
+   Utility helpers
+   ------------------------- */
+function $(id){ return document.getElementById(id); }
+function logDebug(msg){ const el=$('debugLog'); if(el){ el.style.display='block'; el.textContent = new Date().toLocaleTimeString() + ' — ' + msg + '\\n' + el.textContent; } console.log(msg); }
+function showView(id){ document.querySelectorAll('.view').forEach(v=>v.classList.add('hidden')); if(document.getElementById(id)) document.getElementById(id).classList.remove('hidden'); }
+function populateSelect(selElem, arr, blankText) {
+  if(!selElem) return;
+  selElem.innerHTML = '';
+  if(blankText) selElem.appendChild(new Option(blankText, ''));
+  arr.forEach(x => selElem.appendChild(new Option(x.label ?? x.name ?? x, x.value ?? x.name ?? x)));
+}
+/* Build options from snapshot */
+async function loadAllNodes(){
+  // load buildings
+  const buildingsSnap = await db.collection('buildings').orderBy('name').get();
+  const buildings = buildingsSnap.docs.map(d=>({id:d.id, name:d.data().name}));
+  populateSelect($('filterBuilding'), buildings.map(b=>({label:b.name, value:b.name})), 'All');
+  populateSelect($('newUserBuilding'), buildings, 'Select');
+  populateSelect($('selBuildingForFloor'), buildings, '');
+  populateSelect($('selBuildingForCounter'), buildings, '');
+  populateSelect($('selBuildingForCounter'),''); // ensure cleared
+  // load floors
+  const floorsSnap = await db.collection('floors').orderBy('name').get();
+  const floors = floorsSnap.docs.map(d=>({id:d.id, name:d.data().name, building:d.data().building}));
+  populateSelect($('filterFloor'), [{label:'All', value:'all'}].concat(floors.map(f=>({label:f.name, value:f.name}))), 'All');
+  populateSelect($('newUserFloor'), floors.map(f=>({label:f.name, value:f.name})), 'Select');
+  populateSelect($('selFloorForCounter'), floors.map(f=>({label:f.name, value:f.name})), '');
+  populateSelect($('selFloorForCounter'),'');
+  // counters
+  const countersSnap = await db.collection('counters').orderBy('name').get();
+  const counters = countersSnap.docs.map(d=>({id:d.id, name:d.data().name, floor:d.data().floor, building:d.data().building}));
+  populateSelect($('filterCounter'), [{label:'All', value:'all'}].concat(counters.map(c=>({label:c.name + ' ('+c.floor+')', value:c.name}))), 'All');
+  populateSelect($('newUserCounter'), counters.map(c=>({label:c.name, value:c.name})), 'Select');
+  // also update building/floor selects used in nodes panels
+  // building selects
+  populateSelect($('selBuildingForFloor'), buildings, '');
+  populateSelect($('selBuildingForCounter'), buildings, '');
+  // floor selects (for selected building, will filter on change)
+  populateSelect($('selFloorForCounter'), floors.map(f=>({label:f.name, value:f.name})), '');
+  // staff page selects (they are disabled but show assigned values)
+  // update lists display
+  renderBuildingsList();
+  renderFloorsList();
+  renderCountersList();
+}
+
+/* ------------------------
+   Render lists (admin panels)
+   ------------------------ */
+async function renderBuildingsList(){
+  const snap = await db.collection('buildings').orderBy('name').get();
+  const out = document.createElement('div');
+  snap.forEach(d=>{
+    const data = d.data();
+    const row = document.createElement('div');
+    row.className = 'd-flex align-items-center justify-content-between p-2 bg-white mb-2';
+    row.innerHTML = `<div><strong>${data.name}</strong></div><div><button data-id="${d.id}" class="btn btn-sm btn-outline-danger delBuilding">Delete</button></div>`;
+    out.appendChild(row);
+  });
+  $('buildingsList').innerHTML = ''; $('buildingsList').appendChild(out);
+  document.querySelectorAll('.delBuilding').forEach(b=>b.addEventListener('click', async ev=>{
+    if(!confirm('Delete building? This will not cascade-clean floors/counters automatically. Remove child docs manually if desired.')) return;
+    const id = ev.currentTarget.dataset.id; await db.collection('buildings').doc(id).delete(); await loadAllNodes();
+  }));
+}
+async function renderFloorsList(){
+  const snap = await db.collection('floors').orderBy('building').orderBy('name').get();
+  const out = document.createElement('div');
+  snap.forEach(d=>{
+    const data = d.data();
+    const row = document.createElement('div');
+    row.className = 'd-flex align-items-center justify-content-between p-2 bg-white mb-2';
+    row.innerHTML = `<div><strong>${data.name}</strong> <span class="small-muted">(${data.building||''})</span></div><div><button data-id="${d.id}" class="btn btn-sm btn-outline-danger delFloor">Delete</button></div>`;
+    out.appendChild(row);
+  });
+  $('floorsList').innerHTML = ''; $('floorsList').appendChild(out);
+  document.querySelectorAll('.delFloor').forEach(b=>b.addEventListener('click', async ev=>{
+    if(!confirm('Delete floor?')) return;
+    const id = ev.currentTarget.dataset.id; await db.collection('floors').doc(id).delete(); await loadAllNodes();
+  }));
+}
+async function renderCountersList(){
+  const snap = await db.collection('counters').orderBy('building').orderBy('floor').orderBy('name').get();
+  const out = document.createElement('div');
+  snap.forEach(d=>{
+    const data = d.data();
+    const row = document.createElement('div');
+    row.className = 'd-flex align-items-center justify-content-between p-2 bg-white mb-2';
+    row.innerHTML = `<div><strong>${data.name}</strong> <span class="small-muted">(${data.building||''} - ${data.floor||''})</span></div><div><button data-id="${d.id}" class="btn btn-sm btn-outline-danger delCounter">Delete</button></div>`;
+    out.appendChild(row);
+  });
+  $('countersList').innerHTML = ''; $('countersList').appendChild(out);
+  document.querySelectorAll('.delCounter').forEach(b=>b.addEventListener('click', async ev=>{
+    if(!confirm('Delete counter?')) return;
+    const id = ev.currentTarget.dataset.id; await db.collection('counters').doc(id).delete(); await loadAllNodes();
+  }));
+}
+
+/* --------------------------
+   Create nodes: building/floor/counter
+   -------------------------- */
+$('createBuilding').addEventListener('click', async ()=>{
+  const name = $('newBuilding').value.trim(); if(!name) return alert('Enter building name');
+  await db.collection('buildings').add({name}); $('newBuilding').value=''; await loadAllNodes();
+});
+$('createFloor').addEventListener('click', async ()=>{
+  const building = $('selBuildingForFloor').value; const name = $('newFloor').value.trim();
+  if(!building) return alert('Select building'); if(!name) return alert('Enter floor name');
+  await db.collection('floors').add({name, building}); $('newFloor').value=''; await loadAllNodes();
+});
+$('createCounter').addEventListener('click', async ()=>{
+  const building = $('selBuildingForCounter').value; const floor = $('selFloorForCounter').value; const name = $('newCounter').value.trim();
+  if(!building || !floor) return alert('Select building and floor'); if(!name) return alert('Enter counter name');
+  await db.collection('counters').add({name, floor, building}); $('newCounter').value=''; await loadAllNodes();
+});
+
+/* --------------------------
+   Users: create (Auth + user doc)
+   -------------------------- */
+$('btnCreateUser').addEventListener('click', async ()=>{
+  const email = $('newUserEmail').value.trim(); const password = $('newUserPassword').value.trim();
+  const role = $('newUserRole').value || 'counter';
+  const building = $('newUserBuilding').value || '';
+  const floor = $('newUserFloor').value || '';
+  const counter = $('newUserCounter').value || '';
+  if(!email || !password) return alert('Provide email and password');
+  // create auth user via REST (serverless method)
+  const apiKey = firebaseConfig.apiKey;
+  try{
+    const r = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${apiKey}`, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email, password, returnSecureToken:true})
+    });
+    const j = await r.json();
+    if(j.error) return alert('Auth create failed: ' + j.error.message);
+    // create user doc
+    await db.collection('users').doc(j.localId).set({email, role, building, floor, counter, createdAt: firebase.firestore.FieldValue.serverTimestamp()});
+    alert('User created: ' + email);
+    $('newUserEmail').value=''; $('newUserPassword').value='';
+    await renderUsersList();
+  } catch(e){ alert('Error: ' + e.message); }
+});
+
+async function renderUsersList(){
+  const out = document.createElement('div');
+  const snap = await db.collection('users').orderBy('role').get();
+  snap.forEach(d=>{
+    const u = d.data();
+    const r = document.createElement('div');
+    r.className='d-flex align-items-center justify-content-between p-2 bg-white mb-2';
+    r.innerHTML = `<div><strong>${u.email}</strong> <div class="small-muted">role:${u.role} — ${u.building||''} / ${u.floor||''} / ${u.counter||''}</div></div>
+                   <div><button class="btn btn-sm btn-danger delUser" data-id="${d.id}">Delete</button></div>`;
+    out.appendChild(r);
+  });
+  $('usersList').innerHTML=''; $('usersList').appendChild(out);
+  document.querySelectorAll('.delUser').forEach(b=>b.addEventListener('click', async ev=>{
+    if(!confirm('Delete user doc?')) return;
+    const uid = ev.currentTarget.dataset.id; await db.collection('users').doc(uid).delete(); await renderUsersList();
+  }));
+}
+
+/* --------------------------
+   Staff entry save + list
+   -------------------------- */
+$('saveEntry').addEventListener('click', async ()=>{
+  const item = $('item').value.trim(); if(!item) return alert('Enter item');
+  const row = {
+    item, batch: $('batch').value.trim()||'', receivingDate: $('receivingDate').value||'', mfgDate: $('mfgDate').value||'', expiryDate: $('expiryDate').value||'',
+    shelfLife: $('shelfLife').value||'', qty: $('qty').value||'', remarks: $('remarks').value||''
+  };
+  const user = auth.currentUser;
+  if(!user) return alert('Not logged in');
+  const metaDoc = await db.collection('users').doc(user.uid).get();
+  if(!metaDoc.exists) return alert('User metadata missing');
+  const meta = metaDoc.data();
+  const entry = {
+    createdBy: user.uid, creatorEmail: user.email, building: meta.building||'', floor: meta.floor||'', counter: meta.counter||'', date: new Date().toISOString().slice(0,10),
+    rows: [row], timestamp: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  await db.collection('entries').add(entry);
+  alert('Saved');
+  // clear
+  ['item','batch','receivingDate','mfgDate','expiryDate','shelfLife','qty','remarks'].forEach(id=>{ if($(id)) $(id).value=''; });
+  await loadStaffEntries(user.uid);
+});
+
+/* staff entries list (last 7 days) */
+async function loadStaffEntries(uid){
+  const container = $('staffEntriesList'); container.innerHTML='Loading...';
+  const snap = await db.collection('entries').where('createdBy','==',uid).orderBy('timestamp','desc').get();
+  const rows = [];
+  const cutoff = new Date(Date.now() - 7*24*60*60*1000).toISOString().slice(0,10);
+  snap.forEach(d=>{
+    const data = d.data();
+    if(data.date < cutoff) return;
+    data.rows.forEach(r => {
+      rows.push({Date: data.date, Item: r.item, 'Batch No': r.batch, 'Receiving Date': r.receivingDate, 'Mfg Date': r.mfgDate, 'Expiry Date': r.expiryDate, 'Shelf Life': r.shelfLife, 'Qty': r.qty, 'Remarks': r.remarks});
+    });
+  });
+  if(!rows.length) { container.innerHTML = '<div class="small-muted">No entries in last 7 days</div>'; return; }
+  // build table
+  let html = '<table class="table table-sm"><thead><tr>';
+  Object.keys(rows[0]).forEach(k=> html += `<th>${k}</th>`);
+  html += '</tr></thead><tbody>';
+  rows.forEach(r => { html += '<tr>'; Object.keys(r).forEach(k => html += `<td>${r[k]||''}</td>`); html += '</tr>'; });
+  html += '</tbody></table>'; container.innerHTML = html;
+}
+
+/* --------------------------
+   Admin: load filtered entries & export
+   -------------------------- */
+$('btnApplyFilter').addEventListener('click', loadFilteredEntries);
+async function loadFilteredEntries(){
+  const b = $('filterBuilding').value; const f = $('filterFloor').value; const c = $('filterCounter').value;
+  const from = $('filterFrom').value; const to = $('filterTo').value;
+  let q = db.collection('entries').orderBy('timestamp','desc');
+  if(b && b !== 'all') q = q.where('building','==',b);
+  if(f && f !== 'all') q = q.where('floor','==',f);
+  if(c && c !== 'all') q = q.where('counter','==',c);
+  const snap = await q.get();
+  const rows = [];
+  snap.forEach(d=>{
+    const data = d.data();
+    data.rows.forEach(r => {
+      if(from && data.date < from) return;
+      if(to && data.date > to) return;
+      rows.push({date: data.date, building: data.building, floor: data.floor, counter: data.counter, item: r.item, batch: r.batch, receiving: r.receivingDate, mfg: r.mfgDate, expiry: r.expiryDate, shelf: r.shelfLife, qty: r.qty, remarks: r.remarks});
+    });
+  });
+  // populate table
+  const tbody = $('dataTable').querySelector('tbody'); tbody.innerHTML = '';
+  if(!rows.length){ tbody.innerHTML = '<tr><td colspan="12">No records</td></tr>'; return; }
+  rows.forEach(r => {
+    const tr = document.createElement('tr');
+    ['date','building','floor','counter','item','batch','receiving','mfg','expiry','shelf','qty','remarks'].forEach(k=>{
+      const td = document.createElement('td'); td.textContent = r[k]||''; tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  // also populate entriesView
+  renderEntriesList(rows);
+}
+function renderEntriesList(rows){
+  const el = $('entriesList'); el.innerHTML = '';
+  if(!rows || !rows.length){ el.textContent = 'No entries'; return; }
+  let html = '<table class="table table-sm"><thead><tr>';
+  ['Date','Building','Floor','Counter','Item','Batch','Receiving','Mfg','Expiry','Shelf','Qty','Remarks'].forEach(h=> html += `<th>${h}</th>`);
+  html += '</tr></thead><tbody>';
+  rows.forEach(r=>{ html += '<tr>'; ['date','building','floor','counter','item','batch','receiving','mfg','expiry','shelf','qty','remarks'].forEach(k=> html += `<td>${r[k]||''}</td>`); html += '</tr>'; });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+/* Export to PDF / Excel */
+$('btnExportPdf').addEventListener('click', async ()=>{
+  // gather displayed rows
+  const tbody = $('dataTable').querySelector('tbody');
+  if(!tbody || !tbody.rows.length) return alert('No data to export');
+  const rows = Array.from(tbody.rows).map(tr => Array.from(tr.cells).map(td=>td.textContent));
+  await exportPdfFromRows(rows);
+});
+$('btnExportXlsx').addEventListener('click', async ()=>{
+  const tbody = $('dataTable').querySelector('tbody');
+  if(!tbody || !tbody.rows.length) return alert('No data to export');
+  const rows = Array.from(tbody.rows).map(tr => {
+    const cells = Array.from(tr.cells).map(td=>td.textContent);
+    return { Date: cells[0], Building: cells[1], Floor: cells[2], Counter: cells[3], Item: cells[4], Batch: cells[5], Receiving: cells[6], Mfg: cells[7], Expiry: cells[8], Shelf: cells[9], Qty: cells[10], Remarks: cells[11] };
+  });
+  exportToExcel(rows, 'DryStore_Data.xlsx');
+});
+
+async function exportPdfFromRows(rows){
+  // Create temp node with CTS-like layout
+  const node = document.createElement('div');
+  node.style.width='1122px';
+  node.style.padding='18px';
+  node.style.background='#fff';
+  node.style.position='fixed';
+  node.style.left='-9999px';
+  node.innerHTML = `
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:8px">
+      <img src="" style="height:48px" id="pdfLogo" />
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:16px">Dry Store Stock Record - Dry Store Stock Record</div>
+        <div style="font-size:11px;color:#666">Project Name</div>
+      </div>
+    </div>
+    <div style="border:1px solid #999;padding:8px;margin-bottom:8px">
+      <div style="display:flex;gap:8px">
+        <div style="flex:1">Date: ____________________</div>
+        <div style="flex:2">Vendor Name: ____________________________</div>
+        <div style="flex:1">Vendor Supervisor Name: __________________</div>
+      </div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:11px">
+      <thead><tr>
+        <th style="border:1px solid #222;padding:6px">S.No</th>
+        <th style="border:1px solid #222;padding:6px">Items</th>
+        <th style="border:1px solid #222;padding:6px">Batch No.</th>
+        <th style="border:1px solid #222;padding:6px">Receiving Date</th>
+        <th style="border:1px solid #222;padding:6px">Manufacturing Date</th>
+        <th style="border:1px solid #222;padding:6px">Expiry Date</th>
+        <th style="border:1px solid #222;padding:6px">Shelf Life</th>
+        <th style="border:1px solid #222;padding:6px">Stock Quantity</th>
+        <th style="border:1px solid #222;padding:6px">Remarks</th>
+      </tr></thead><tbody>
+      ${rows.map((r,i)=>`<tr>
+        <td style="border:1px solid #bbb;padding:6px">${i+1}</td>
+        <td style="border:1px solid #bbb;padding:6px">${r[4]||''}</td>
+        <td style="border:1px solid #bbb;padding:6px">${r[5]||''}</td>
+        <td style="border:1px solid #bbb;padding:6px">${r[6]||''}</td>
+        <td style="border:1px solid #bbb;padding:6px">${r[7]||''}</td>
+        <td style="border:1px solid #bbb;padding:6px">${r[8]||''}</td>
+        <td style="border:1px solid #bbb;padding:6px">${r[9]||''}</td>
+        <td style="border:1px solid #bbb;padding:6px">${r[10]||''}</td>
+        <td style="border:1px solid #bbb;padding:6px">${r[11]||''}</td>
+      </tr>`).join('')}
+      </tbody>
+    </table>
+    <div style="margin-top:8px;display:flex;justify-content:space-between">
+      <div>Vendor PoC : ___________________</div>
+      <div>Verified by F&B team : ___________________</div>
+    </div>
+  `;
+  document.body.appendChild(node);
+  // render to canvas and pdf
+  const canvas = await html2canvas(node, {scale:2, useCORS:true});
+  const imgData = canvas.toDataURL('image/png');
+  const pdf = new window.jspdf.jsPDF({orientation:'landscape', unit:'pt', format:'a4'});
+  const pdfW = pdf.internal.pageSize.getWidth();
+  const pdfH = pdf.internal.pageSize.getHeight();
+  pdf.addImage(imgData, 'PNG', 0, 0, pdfW, pdfH);
+  pdf.save('DryStore_Record.pdf');
+  document.body.removeChild(node);
+}
+function exportToExcel(jsonData, filename='export.xlsx'){
+  const ws = XLSX.utils.json_to_sheet(jsonData);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+  XLSX.writeFile(wb, filename);
+}
+
+/* --------------------------
+   Home totals + recent entries
+   -------------------------- */
+async function loadHomeData(){
+  const bSnap = await db.collection('buildings').get();
+  const fSnap = await db.collection('floors').get();
+  const cSnap = await db.collection('counters').get();
+  const totals = `Buildings: ${bSnap.size} <br> Floors: ${fSnap.size} <br> Counters: ${cSnap.size}`;
+  $('totalsBlock').innerHTML = totals;
+  // recent entries
+  const eSnap = await db.collection('entries').orderBy('timestamp','desc').limit(8).get();
+  const rows = [];
+  eSnap.forEach(d=>{ const data = d.data(); data.rows.forEach(r => rows.push({date:data.date, building:data.building, floor:data.floor, counter:data.counter, item:r.item, qty:r.qty})); });
+  const el = $('recentEntries'); if(!rows.length) { el.innerHTML = '<div class="small-muted">No recent entries</div>'; return; }
+  let html = '<table class="table table-sm"><thead><tr><th>Date</th><th>Building</th><th>Floor</th><th>Counter</th><th>Item</th><th>Qty</th></tr></thead><tbody>';
+  rows.forEach(r=> html += `<tr><td>${r.date}</td><td>${r.building}</td><td>${r.floor}</td><td>${r.counter}</td><td>${r.item}</td><td>${r.qty}</td></tr>`);
+  html += '</tbody></table>'; el.innerHTML = html;
+}
+
+/* --------------------------
+   Auth state handling
+   -------------------------- */
+auth.onAuthStateChanged(async user=>{
+  if(!user){
+    logDebug('Signed out');
+    // show login only
+    $('loginView').style.display='block';
+    document.querySelectorAll('.navbtn').forEach(b=>b.style.display='block');
+    showView('homeView'); // default hidden views but show home skeleton
+    $('staffBlock').classList.add('hidden');
+    $('roleBadge').textContent = ''; $('userEmail').textContent = '';
+    return;
+  }
+  logDebug('Signed in: ' + user.email);
+  $('loginView').style.display='none';
+  $('userEmail').textContent = user.email;
+  // fetch user doc
+  const meta = (await db.collection('users').doc(user.uid).get()).data();
+  if(!meta){ // if missing, treat as admin only (redirect to admin UI)
+    $('roleBadge').textContent = 'Admin (no doc)';
+    $('pageTitle').textContent = 'Admin Dashboard';
+    // show admin views
+    document.querySelectorAll('.navbtn').forEach(b=>b.style.display='block');
+    await loadAllNodes(); await renderUsersList(); await loadHomeData();
+    showView('homeView');
+    return;
+  }
+  $('roleBadge').textContent = meta.role || 'counter';
+  if((meta.role||'counter') === 'admin'){
+    // admin UI
+    document.querySelectorAll('.navbtn').forEach(b=>b.style.display='block');
+    await loadAllNodes(); await renderUsersList(); await loadHomeData();
+    showView('homeView');
+  } else if(meta.role === 'manager'){
+    // manager UI: hide nodes creation but show data & entries for floor
+    document.querySelectorAll('.navbtn').forEach(b=> { if(b.dataset.target==='buildingsView' || b.dataset.target==='floorsView' || b.dataset.target==='countersView' || b.dataset.target==='usersView') b.style.display='none'; });
+    // show manager view as home
+    $('pageTitle').textContent = 'Manager Dashboard';
+    showView('homeView');
+    // load entries for manager floor
+    const snap = await db.collection('entries').where('floor','==',meta.floor).orderBy('timestamp','desc').get();
+    const rows = [];
+    snap.forEach(d=>{ const data = d.data(); data.rows.forEach(r=> rows.push({date:data.date, counter:data.counter, item:r.item, qty:r.qty})); });
+    const el = $('recentEntries');
+    if(!rows.length) el.innerHTML = '<div class="small-muted">No entries</div>'; else {
+      el.innerHTML = '<table class="table table-sm"><thead><tr><th>Date</th><th>Counter</th><th>Item</th><th>Qty</th></tr></thead><tbody>' + rows.map(r=>`<tr><td>${r.date}</td><td>${r.counter}</td><td>${r.item}</td><td>${r.qty}</td></tr>`).join('') + '</tbody></table>';
+    }
+  } else {
+    // counter (staff)
+    // hide admin-only buttons
+    document.querySelectorAll('.navbtn').forEach(b=> { if(b.dataset.target!=='homeView') b.style.display='none'; });
+    $('pageTitle').textContent = 'Counter — Entry';
+    // show staff block and populate assigned values
+    $('staffBlock').classList.remove('hidden');
+    $('staffBuilding').innerHTML = `<option>${meta.building||''}</option>`;
+    $('staffFloor').innerHTML = `<option>${meta.floor||''}</option>`;
+    $('staffCounter').innerHTML = `<option>${meta.counter||''}</option>`;
+    await loadStaffEntries(user.uid);
+    showView('homeView');
+  }
+});
+
+/* --------------------------
+   Login & Logout
+   -------------------------- */
+$('btnLogin').addEventListener('click', async ()=>{
+  $('loginError').style.display='none';
+  const email = $('loginEmail').value.trim(), pw = $('loginPassword').value;
+  if(!email || !pw) { $('loginError').style.display='block'; $('loginError').textContent='Enter email and password'; return; }
+  try{ await auth.signInWithEmailAndPassword(email, pw); } catch(e){ $('loginError').style.display='block'; $('loginError').textContent = e.message; }
+});
+$('logoutBtn').addEventListener('click', ()=> auth.signOut());
+$('btnShowDebug').addEventListener('click', ()=> { const el = $('debugLog'); el.style.display = el.style.display === 'none' ? 'block' : 'none'; });
+
+/* --------------------------
+   Page navigation
+   -------------------------- */
+document.querySelectorAll('.navbtn').forEach(b=>{
+  b.addEventListener('click', ()=> {
+    document.querySelectorAll('.navbtn').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    const t = b.dataset.target;
+    // special: if nav is entries/data show both
+    if(t === 'dataView'){ showView('dataView'); }
+    else if(t === 'homeView'){ showView('homeView'); }
+    else if(t === 'usersView'){ showView('usersView'); renderUsersList(); }
+    else if(t === 'buildingsView'){ showView('buildingsView'); renderBuildingsList(); }
+    else if(t === 'floorsView'){ showView('floorsView'); renderFloorsList(); }
+    else if(t === 'countersView'){ showView('countersView'); renderCountersList(); }
+    else if(t === 'entriesView'){ showView('entriesView'); }
+  });
+});
+
+/* --------------------------
+   Init: load nodes to fill selects if anonymous / admin later
+   -------------------------- */
+(async function init(){
+  // try to populate selects (even before login)
+  try{ await loadAllNodes(); } catch(e){ logDebug('init load nodes error: ' + e.message); }
+})();
   </script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
