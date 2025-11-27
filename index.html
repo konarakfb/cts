@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Dry Store Inventory</title>
+
+  <style>
+    :root{--accent:#0b74de;--muted:#666;--bg:#f6f8fb;--card:#fff}
+    body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:0;background:var(--bg)}
+    header{background:#fff;padding:12px 16px;border-bottom:1px solid #eee;display:flex;align-items:center;gap:12px}
+    .container{max-width:1100px;margin:18px auto;padding:12px}
+    .card{background:var(--card);border-radius:8px;box-shadow:0 1px 4px rgba(10,10,10,0.04);padding:16px}
+    .grid{display:grid;gap:12px}
+    .two-col{grid-template-columns: 1fr 2fr;}
+    h1{margin:8px 0 16px;font-size:20px}
+    label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+    input,select,textarea{
+      width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:14px;background:#fff;
+    }
+    button{background:var(--accent);color:#fff;border:0;padding:10px 12px;border-radius:6px;cursor:pointer}
+    .btn-ghost{background:transparent;border:1px solid #ddd;color:#333}
+    table{width:100%;border-collapse:collapse}
+    th,td{border:1px solid #eee;padding:8px;text-align:left;font-size:13px}
+    th{background:#fafafa}
+    nav.sidebar{width:220px}
+    .flex{display:flex;gap:12px;align-items:center}
+    .hide{display:none}
+    .top-right{margin-left:auto}
+    .small{font-size:12px;color:var(--muted)}
+  </style>
+</head>
+
+<body>
+<header>
+  <strong>Dry Store Inventory</strong>
+  <div class="top-right" id="auth-area"></div>
+</header>
+
+<div class="container">
+
+  <!-- LOGIN PAGE -->
+  <div id="page-login" class="card">
+    <h1>Login</h1>
+    <form id="loginForm" class="grid">
+      <label>Email <input id="loginEmail" required></label>
+      <label>Password <input id="loginPassword" type="password" required></label>
+      <button>Login</button>
+    </form>
+  </div>
+
+  <!-- STAFF PAGE -->
+  <div id="page-staff" class="card hide">
+    <h1>Staff — Add Dry Store Entry</h1>
+
+    <form id="entryForm" class="grid card">
+      <label>Item <input name="item" required></label>
+      <label>Batch No <input name="batchNo" required></label>
+      <label>Receiving Date <input name="receivingDate" type="date" required></label>
+      <label>Mfg Date <input name="mfgDate" type="date"></label>
+      <label>Expiry Date <input name="expiryDate" type="date"></label>
+      <label>Shelf Life (days) <input name="shelfLife" type="number"></label>
+      <label>Stock Qty <input name="stockQty" type="number" required></label>
+      <label>Remarks <textarea name="remarks"></textarea></label>
+      <button>Save</button>
+    </form>
+
+    <h2>Last 7 Days History</h2>
+    <table id="staffTable"><thead>
+      <tr>
+        <th>S.No</th><th>Item</th><th>Batch</th>
+        <th>Receiving</th><th>Mfg</th><th>Expiry</th>
+        <th>Shelf</th><th>Qty</th><th>Remarks</th>
+      </tr>
+    </thead><tbody></tbody></table>
+  </div>
+
+  <!-- MANAGER PAGE -->
+  <div id="page-manager" class="card hide">
+    <h1>Manager — Data View</h1>
+
+    <div class="grid card">
+      <label>Building <select id="mgrBuilding"></select></label>
+      <label>Floor <select id="mgrFloor"></select></label>
+      <label>Counter <select id="mgrCounter"></select></label>
+      <label>From <input id="mgrFrom" type="date"></label>
+      <label>To <input id="mgrTo" type="date"></label>
+      <button id="mgrView">View</button>
+      <button id="mgrCSV" class="btn-ghost">CSV</button>
+      <button id="mgrPDF" class="btn-ghost">PDF</button>
+    </div>
+
+    <table id="mgrTable"><thead>
+      <tr>
+        <th>S.No</th><th>Item</th><th>Batch</th><th>Receiving</th>
+        <th>Mfg</th><th>Expiry</th><th>Shelf</th><th>Qty</th><th>Remarks</th><th>By</th>
+      </tr>
+    </thead><tbody></tbody></table>
+  </div>
+
+  <!-- ADMIN PAGE -->
+  <div id="page-admin" class="card hide">
+    <h1>Admin — Data & Management</h1>
+
+    <div class="grid card">
+      <label>Building <select id="admBuilding"></select></label>
+      <label>Floor <select id="admFloor"></select></label>
+      <label>Counter <select id="admCounter"></select></label>
+      <label>From <input id="admFrom" type="date"></label>
+      <label>To <input id="admTo" type="date"></label>
+      <button id="admView">View</button>
+      <button id="admCSV" class="btn-ghost">CSV</button>
+      <button id="admPDF" class="btn-ghost">PDF</button>
+    </div>
+
+    <table id="admTable"><thead>
+      <tr>
+        <th>S.No</th><th>Item</th><th>Batch</th><th>Receiving</th>
+        <th>Mfg</th><th>Expiry</th><th>Shelf</th><th>Qty</th>
+        <th>Remarks</th><th>By</th><th>Bldg</th><th>Floor</th><th>Counter</th>
+      </tr>
+    </thead><tbody></tbody></table>
+
+    <hr><h2>Infrastructure</h2>
+
+    <div class="grid card">
+      <h3>Create Building</h3>
+      <input id="newBuildingName" placeholder="Building">
+      <button id="createBuilding">Create</button>
+
+      <h3>Create Floor</h3>
+      <select id="floorBuilding"></select>
+      <input id="newFloorName" placeholder="Floor">
+      <button id="createFloor">Create</button>
+
+      <h3>Create Counter</h3>
+      <select id="counterBuilding"></select>
+      <select id="counterFloor"></select>
+      <input id="newCounterName" placeholder="Counter">
+      <button id="createCounter">Create</button>
+
+      <h3>Create User</h3>
+      <input id="newUid" placeholder="Auth UID">
+      <input id="newUserName" placeholder="Name">
+      <select id="newUserRole">
+        <option value="admin">admin</option>
+        <option value="manager">manager</option>
+        <option value="staff">staff</option>
+      </select>
+      <select id="assignBuilding"></select>
+      <select id="assignFloor"></select>
+      <select id="assignCounter"></select>
+      <button id="createUser">Create User Doc</button>
+    </div>
+
+  </div>
+</div>
+
+<script type="module">
+
+/* --------------------------
+   FIREBASE CONFIG (YOUR DATA)
+----------------------------- */
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAXs1fa6r7u8EmvPtbFqhNG5AucSHrxvcI",
+  authDomain: "dry-store-inventory.firebaseapp.com",
+  projectId: "dry-store-inventory",
+  storageBucket: "dry-store-inventory.firebasestorage.app",
+  messagingSenderId: "257884008130",
+  appId: "1:257884008130:web:5985c82584e286c5a5555b"
+};
+
+/* --------------------------
+   IMPORTS
+----------------------------- */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import {
+  getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut
+} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+import {
+  getFirestore, collection, doc, setDoc, addDoc, getDoc, getDocs,
+  query, where, orderBy, serverTimestamp, Timestamp
+} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const $ = id=>document.getElementById(id);
+
+/* --------------------------
+   LOGIN
+----------------------------- */
+$("loginForm").addEventListener("submit", async e=>{
+  e.preventDefault();
+  try{
+    await signInWithEmailAndPassword(
+      auth,
+      $("loginEmail").value,
+      $("loginPassword").value
+    );
+  }catch(err){ alert(err.message); }
+});
+
+/* --------------------------
+   AUTH ROUTING
+----------------------------- */
+onAuthStateChanged(auth, async user=>{
+  if(!user){ show("page-login"); $("auth-area").innerHTML=""; return; }
+
+  const udoc = await getDoc(doc(db,"users",user.uid));
+  if(!udoc.exists()){ alert("User doc missing"); return;}
+
+  const profile = udoc.data();
+  $("auth-area").innerHTML =
+    `<small>${profile.name} (${profile.role})</small> 
+     <button onclick="firebaseSignOut()" class="btn-ghost">Logout</button>`;
+
+  if(profile.role==="admin") initAdmin(profile);
+  if(profile.role==="manager") initManager(profile);
+  if(profile.role==="staff") initStaff(profile);
+});
+
+window.firebaseSignOut = async ()=>{ await signOut(auth); };
+
+/* SHOW PAGE */
+function show(id){
+  ["page-login","page-staff","page-admin","page-manager"]
+    .forEach(p=>$(p).classList.add("hide"));
+  $(id).classList.remove("hide");
+}
+
+/* --------------------------
+   STAFF FUNCTIONS
+----------------------------- */
+async function initStaff(user){
+  show("page-staff");
+
+  $("entryForm").onsubmit = async e=>{
+    e.preventDefault();
+    const f = e.target;
+
+    await addDoc(collection(db,"entries"),{
+      createdBy: user.uid,
+      buildingId: user.assigned.buildingId,
+      floorId: user.assigned.floorId,
+      counterId: user.assigned.counterId,
+      item: f.item.value,
+      batchNo: f.batchNo.value,
+      receivingDate: f.receivingDate.value,
+      mfgDate: f.mfgDate.value,
+      expiryDate: f.expiryDate.value,
+      shelfLife: f.shelfLife.value,
+      stockQty: Number(f.stockQty.value),
+      remarks: f.remarks.value,
+      createdAt: serverTimestamp(),
+      visibleToStaffUntil: Timestamp.fromMillis(Date.now()+7*24*60*60*1000)
+    });
+
+    f.reset();
+    loadStaffTable(user.assigned.counterId);
+  };
+
+  loadStaffTable(user.assigned.counterId);
+}
+
+async function loadStaffTable(counterId){
+  const seven = Timestamp.fromMillis(Date.now()-7*24*60*60*1000);
+  const q = query(
+    collection(db,"entries"),
+    where("counterId","==",counterId),
+    where("createdAt",">=",seven),
+    orderBy("createdAt","desc")
+  );
+  const snap = await getDocs(q);
+  const tbody = $("staffTable").querySelector("tbody");
+  tbody.innerHTML="";
+
+  snap.docs.forEach((d,i)=>{
+    const r = d.data();
+    tbody.innerHTML += `
+      <tr>
+        <td>${i+1}</td>
+        <td>${r.item}</td>
+        <td>${r.batchNo}</td>
+        <td>${r.receivingDate}</td>
+        <td>${r.mfgDate}</td>
+        <td>${r.expiryDate}</td>
+        <td>${r.shelfLife}</td>
+        <td>${r.stockQty}</td>
+        <td>${r.remarks}</td>
+      </tr>`;
+  });
+}
+
+/* --------------------------
+   MANAGER FUNCTIONS
+----------------------------- */
+async function initManager(user){
+  show("page-manager");
+
+  $("mgrBuilding").innerHTML =
+    `<option value="${user.assigned.buildingId}">${user.assigned.buildingId}</option>`;
+  $("mgrFloor").innerHTML =
+    `<option value="${user.assigned.floorId}">${user.assigned.floorId}</option>`;
+  $("mgrCounter").innerHTML =
+    `<option value="${user.assigned.counterId}">${user.assigned.counterId}</option>`;
+
+  $("mgrView").onclick = async ()=> loadMgrTable(user);
+  $("mgrCSV").onclick = ()=> exportCSV("mgrTable","manager.csv");
+  $("mgrPDF").onclick = ()=> exportPDF("mgrTable","manager.pdf");
+}
+
+async function loadMgrTable(user){
+  const tbody = $("mgrTable").querySelector("tbody");
+  tbody.innerHTML="";
+
+  const filters = [];
+  filters.push(where("buildingId","==",user.assigned.buildingId));
+  if(user.assigned.floorId) filters.push(where("floorId","==",user.assigned.floorId));
+  if(user.assigned.counterId) filters.push(where("counterId","==",user.assigned.counterId));
+
+  let q = query(collection(db,"entries"),...filters, orderBy("createdAt","desc"));
+
+  const snap = await getDocs(q);
+
+  let from = $("mgrFrom").value;
+  let to = $("mgrTo").value;
+
+  const rows = snap.docs.map(d=>({id:d.id,...d.data()}))
+    .filter(r=>{
+      if(from && r.createdAt.toDate()<new Date(from)) return false;
+      if(to && r.createdAt.toDate()>new Date(to)) return false;
+      return true;
+    });
+
+  rows.forEach((r,i)=>{
+    tbody.innerHTML += `
+    <tr>
+      <td>${i+1}</td><td>${r.item}</td><td>${r.batchNo}</td>
+      <td>${r.receivingDate}</td><td>${r.mfgDate}</td><td>${r.expiryDate}</td>
+      <td>${r.shelfLife}</td><td>${r.stockQty}</td><td>${r.remarks}</td><td>${r.createdBy}</td>
+    </tr>`;
+  });
+}
+
+/* --------------------------
+   ADMIN FUNCTIONS
+----------------------------- */
+async function initAdmin(user){
+  show("page-admin");
+
+  await loadInfraDropdowns();
+
+  $("admView").onclick = async ()=> loadAdminTable();
+  $("admCSV").onclick = ()=> exportCSV("admTable","admin.csv");
+  $("admPDF").onclick = ()=> exportPDF("admTable","admin.pdf");
+
+  $("createBuilding").onclick = async ()=>{
+    await addDoc(collection(db,"buildings"),{
+      name: $("newBuildingName").value,
+      createdAt: serverTimestamp()
+    });
+    await loadInfraDropdowns();
+  };
+
+  $("createFloor").onclick = async ()=>{
+    await addDoc(collection(db,"floors"),{
+      name: $("newFloorName").value,
+      buildingId: $("floorBuilding").value,
+      createdAt: serverTimestamp()
+    });
+    await loadInfraDropdowns();
+  };
+
+  $("createCounter").onclick = async ()=>{
+    await addDoc(collection(db,"counters"),{
+      name: $("newCounterName").value,
+      buildingId: $("counterBuilding").value,
+      floorId: $("counterFloor").value,
+      createdAt: serverTimestamp()
+    });
+    await loadInfraDropdowns();
+  };
+
+  $("createUser").onclick = async ()=>{
+    await setDoc(doc(db,"users",$("newUid").value),{
+      name: $("newUserName").value,
+      role: $("newUserRole").value,
+      assigned:{
+        buildingId: $("assignBuilding").value,
+        floorId: $("assignFloor").value,
+        counterId: $("assignCounter").value
+      },
+      createdAt: serverTimestamp()
+    });
+    alert("User document created.");
+  };
+}
+
+async function loadInfraDropdowns(){
+  const b = await getDocs(collection(db,"buildings"));
+  const f = await getDocs(collection(db,"floors"));
+  const c = await getDocs(collection(db,"counters"));
+
+  const fill =(el,list)=> el.innerHTML = list.docs.map(d=>`<option value="${d.id}">${d.data().name}</option>`).join("");
+
+  fill($("admBuilding"),b);
+  fill($("admFloor"),f);
+  fill($("admCounter"),c);
+
+  fill($("floorBuilding"),b);
+  fill($("counterBuilding"),b);
+  fill($("counterFloor"),f);
+
+  fill($("assignBuilding"),b);
+  fill($("assignFloor"),f);
+  fill($("assignCounter"),c);
+}
+
+async function loadAdminTable(){
+  const tbody = $("admTable").querySelector("tbody");
+  tbody.innerHTML="";
+
+  const q = query(collection(db,"entries"), orderBy("createdAt","desc"));
+  const snap = await getDocs(q);
+
+  let from = $("admFrom").value;
+  let to = $("admTo").value;
+
+  const rows = snap.docs.map(d=>({id:d.id,...d.data()}))
+    .filter(r=>{
+      if(from && r.createdAt.toDate()<new Date(from)) return false;
+      if(to && r.createdAt.toDate()>new Date(to)) return false;
+      if($("admBuilding").value && r.buildingId!==$("admBuilding").value) return false;
+      if($("admFloor").value && r.floorId!==$("admFloor").value) return false;
+      if($("admCounter").value && r.counterId!==$("admCounter").value) return false;
+      return true;
+    });
+
+  rows.forEach((r,i)=>{
+    tbody.innerHTML += `
+    <tr>
+      <td>${i+1}</td><td>${r.item}</td><td>${r.batchNo}</td><td>${r.receivingDate}</td>
+      <td>${r.mfgDate}</td><td>${r.expiryDate}</td><td>${r.shelfLife}</td><td>${r.stockQty}</td>
+      <td>${r.remarks}</td><td>${r.createdBy}</td><td>${r.buildingId}</td>
+      <td>${r.floorId}</td><td>${r.counterId}</td>
+    </tr>`;
+  });
+}
+
+/* --------------------------
+   EXPORT CSV / PDF
+----------------------------- */
+function exportCSV(tableId, filename){
+  const rows = [...document.getElementById(tableId).rows];
+  let csv = rows.map(r => [...r.cells].map(c=>`"${c.innerText}"`).join(",")).join("\n");
+  let blob = new Blob([csv],{type:"text/csv"});
+  let a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+}
+
+async function exportPDF(tableId, filename){
+  const { jsPDF } = await import("https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js");
+  const docp = new jsPDF("l","pt","a4");
+
+  let rows = [...document.getElementById(tableId).rows].map(r=>[...r.cells].map(c=>c.innerText));
+  let y=40;
+  rows.forEach(r=>{
+    docp.text(r.join(" | ").slice(0,140),40,y);
+    y+=14;
+    if(y>550){ docp.addPage(); y=40; }
+  });
+
+  docp.save(filename);
+}
+
+/* -----------------------------------------------------
+   FIRESTORE SECURITY RULES (COPY TO FIREBASE RULES TAB)
+--------------------------------------------------------
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() { return request.auth != null; }
+    function profile() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+
+    match /users/{u} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && profile().role == "admin";
+    }
+
+    match /buildings/{b} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && profile().role == "admin";
+    }
+    match /floors/{f} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && profile().role == "admin";
+    }
+    match /counters/{c} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && profile().role == "admin";
+    }
+
+    match /entries/{e} {
+
+      allow create: if isSignedIn() && canCreate();
+      allow read: if isSignedIn() && canRead();
+
+      function canCreate(){
+        let p = profile();
+        if(p.role=="admin" || p.role=="manager") return true;
+
+        return p.role=="staff"
+          && request.resource.data.counterId == p.assigned.counterId
+          && request.resource.data.createdBy == request.auth.uid;
+      }
+
+      function canRead(){
+        let p = profile();
+        let data = resource.data;
+
+        if(p.role=="admin") return true;
+        if(p.role=="manager") return data.buildingId == p.assigned.buildingId;
+
+        if(p.role=="staff"){
+          return data.counterId == p.assigned.counterId
+            && data.visibleToStaffUntil != null
+            && timestamp(data.visibleToStaffUntil) >= request.time;
+        }
+        return false;
+      }
+    }
+  }
+}
+
+------------------------------------------------------ */
+
+</script>
+
+</body>
+</html>
