@@ -1,4 +1,4 @@
-// admin.js - admin actions: nodes (buildings/floors/counters), users, filter/export
+// js/admin.js
 document.addEventListener('DOMContentLoaded', ()=>{ if (location.pathname.endsWith('admin.html')) initAdminPage(); });
 
 async function initAdminPage(){
@@ -18,7 +18,8 @@ async function initAdminPage(){
 
   auth.onAuthStateChanged(async user => {
     if (!user) return window.location = 'index.html';
-    const meta = (await db.collection('users').doc(user.uid).get()).data() || {};
+    const metaDoc = await db.collection('users').doc(user.uid).get();
+    const meta = metaDoc.exists ? metaDoc.data() : {};
     document.getElementById('who').textContent = user.email + ' — ' + (meta.role || 'admin');
   });
 
@@ -34,38 +35,91 @@ function switchSection(id){
 }
 
 async function loadNodesToUI(){
-  // populate selects with buildings, floors, counters
   const bSel = document.getElementById('selectBuilding');
   const fSel = document.getElementById('selectFloor');
   const cSel = document.getElementById('selectCounter');
-  [bSel,fSel,cSel].forEach(s=>{ if(s) s.innerHTML=''; });
-  if(bSel) bSel.appendChild(new Option('All','all'));
-  if(fSel) fSel.appendChild(new Option('All','all'));
-  if(cSel) cSel.appendChild(new Option('All','all'));
+  if (bSel) { bSel.innerHTML=''; bSel.appendChild(new Option('All','all')); }
+  if (fSel) { fSel.innerHTML=''; fSel.appendChild(new Option('All','all')); }
+  if (cSel) { cSel.innerHTML=''; cSel.appendChild(new Option('All','all')); }
 
   const bSnap = await db.collection('buildings').orderBy('name').get();
-  const fSnap = await db.collection('floors').orderBy('name').get();
-  const cSnap = await db.collection('counters').orderBy('floor').orderBy('name').get();
+  const fSnap = await db.collection('floors').orderBy('building').orderBy('name').get();
+  const cSnap = await db.collection('counters').orderBy('building').orderBy('floor').orderBy('name').get();
 
-  bSnap.forEach(d => {
-    if (bSel) bSel.appendChild(new Option(d.data().name, d.data().name));
-  });
-  fSnap.forEach(d => {
-    if (fSel) fSel.appendChild(new Option(d.data().name, d.data().name));
-  });
+  bSnap.forEach(d => { if (bSel) bSel.appendChild(new Option(d.data().name, d.data().name)); });
+  fSnap.forEach(d => { if (fSel) fSel.appendChild(new Option(d.data().name, d.data().name)); });
   cSnap.forEach(d => {
     const data = d.data();
     if (cSel) cSel.appendChild(new Option(`${data.name} (${data.floor})`, `${data.floor}|||${data.name}`));
   });
 
-  // node creation selects
-  const selIds = ['selBuildingForFloor','selBuildingForCounter','selFloorForCounter','newUserBuilding','newUserFloor','newUserCounter'];
-  selIds.forEach(id => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.innerHTML = '<option value="">--</option>';
-    bSnap.forEach(b => el.appendChild(new Option(b.data().name,b.data().name)));
-    fSnap.forEach(f => el.appendChild(new Option(f.data().name,f.data().name)));
+  const selBuildingForFloor = document.getElementById('selBuildingForFloor');
+  const selBuildingForCounter = document.getElementById('selBuildingForCounter');
+  const selFloorForCounter = document.getElementById('selFloorForCounter');
+  const newUserBuilding = document.getElementById('newUserBuilding');
+  const newUserCounter = document.getElementById('newUserCounter');
+
+  function reset(el, placeholder) { if(!el) return; el.innerHTML = ''; el.appendChild(new Option(placeholder || '--','')); }
+
+  reset(selBuildingForFloor, '-- select building --');
+  reset(selBuildingForCounter, '-- select building --');
+  reset(selFloorForCounter, '-- select floor --');
+  reset(newUserBuilding,'-- building --');
+  reset(newUserCounter,'-- counter --');
+
+  bSnap.forEach(b => {
+    const name = b.data().name;
+    [selBuildingForFloor, selBuildingForCounter, newUserBuilding].forEach(el=>{ if(el) el.appendChild(new Option(name,name)); });
+  });
+
+  fSnap.forEach(f => {
+    const name = f.data().name;
+    [selFloorForCounter].forEach(el=>{ if(el) el.appendChild(new Option(name,name)); });
+  });
+
+  cSnap.forEach(c => {
+    const data = c.data();
+    const label = `${data.name} (${data.floor})`;
+    if (newUserCounter) newUserCounter.appendChild(new Option(label, `${data.floor}|||${data.name}`));
+  });
+
+  await renderNodesList();
+}
+
+async function renderNodesList(){
+  const el = document.getElementById('nodesList');
+  if (!el) return;
+  el.innerHTML = '';
+  const buildings = {};
+  const bSnap = await db.collection('buildings').orderBy('name').get();
+  const fSnap = await db.collection('floors').orderBy('name').get();
+  const cSnap = await db.collection('counters').orderBy('floor').orderBy('name').get();
+
+  bSnap.forEach(b => buildings[b.data().name] = { floors: {} });
+  fSnap.forEach(f => {
+    const bm = buildings[f.data().building] || { floors: {} };
+    bm.floors[f.data().name] = bm.floors[f.data().name] || { counters: [] };
+    buildings[f.data().building] = bm;
+  });
+  cSnap.forEach(c => {
+    const bname = c.data().building || '';
+    const fname = c.data().floor || '';
+    const b = buildings[bname] = buildings[bname] || { floors:{} };
+    const floorObj = b.floors[fname] = b.floors[fname] || { counters: [] };
+    floorObj.counters.push(c.data().name);
+  });
+
+  Object.keys(buildings).forEach(bn => {
+    const divB = document.createElement('div');
+    divB.innerHTML = `<strong>${bn}</strong>`;
+    Object.keys(buildings[bn].floors).forEach(fn => {
+      const floorDiv = document.createElement('div');
+      floorDiv.style.marginLeft='12px';
+      const counters = buildings[bn].floors[fn].counters || [];
+      floorDiv.innerHTML = `<em>${fn}</em> — ${counters.join(', ') || '—'}`;
+      divB.appendChild(floorDiv);
+    });
+    el.appendChild(divB);
   });
 }
 
@@ -92,7 +146,9 @@ async function createCounter(){
   const building = document.getElementById('selBuildingForCounter').value;
   const floor = document.getElementById('selFloorForCounter').value;
   const name = document.getElementById('newCounterName').value.trim();
-  if(!floor || !name) return alert('Select floor and enter counter name');
+  if(!building) return alert('Select a building for this counter');
+  if(!floor) return alert('Select a floor for this counter');
+  if(!name) return alert('Enter counter name');
   await db.collection('counters').add({name, floor, building, createdAt: firebase.firestore.FieldValue.serverTimestamp()});
   alert('Counter created');
   document.getElementById('newCounterName').value = '';
@@ -104,11 +160,16 @@ async function createUser(){
   const pwd = document.getElementById('newPassword').value.trim();
   const role = document.getElementById('newUserRole').value;
   const building = document.getElementById('newUserBuilding').value;
-  const floor = document.getElementById('newUserFloor').value;
-  const counter = document.getElementById('newUserCounter').value;
+  const counterComp = document.getElementById('newUserCounter').value;
+  let floor = '';
+  let counter = '';
+  if (counterComp && counterComp.includes('|||')) {
+    const parts = counterComp.split('|||');
+    floor = parts[0];
+    counter = parts[1];
+  }
   if(!email || !pwd) return alert('Enter email & password');
 
-  // create auth user via REST (requires apiKey)
   const apiKey = firebaseConfig.apiKey;
   const resp = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${apiKey}`, {
     method:'POST', headers:{'Content-Type':'application/json'},
@@ -116,7 +177,6 @@ async function createUser(){
   });
   const data = await resp.json();
   if (data.error) return alert('Auth create failed: ' + JSON.stringify(data.error));
-  // create users doc
   await db.collection('users').doc(data.localId).set({
     email, role, building, floor, counter, createdAt: firebase.firestore.FieldValue.serverTimestamp()
   });
@@ -145,16 +205,15 @@ async function renderUsersList(){
 
 async function renderLeftCounters(){
   const container = document.getElementById('leftCounters'); container.innerHTML='';
-  const snap = await db.collection('counters').orderBy('floor').orderBy('name').get();
-  let currentFloor = null;
+  const snap = await db.collection('counters').orderBy('building').orderBy('floor').orderBy('name').get();
   snap.forEach(d => {
     const c = d.data();
     const node = document.createElement('button');
     node.className = 'nav-btn';
-    node.textContent = `${c.floor} — ${c.name}`;
+    node.textContent = `${c.building || ''} / ${c.floor} — ${c.name}`;
     node.addEventListener('click', async ()=> {
-      // set filters to this floor+counter and show data
-      document.getElementById('selectFloor').value = c.floor;
+      document.getElementById('selectBuilding').value = c.building || 'all';
+      document.getElementById('selectFloor').value = c.floor || 'all';
       document.getElementById('selectCounter').value = `${c.floor}|||${c.name}`;
       switchSection('sectionData');
       await loadFilteredEntries();
@@ -168,7 +227,6 @@ async function loadFilteredEntries(){
   const counterComp = document.getElementById('selectCounter').value;
   const from = document.getElementById('fromDate').value;
   const to = document.getElementById('toDate').value;
-  // base query
   let q = db.collection('entries').orderBy('timestamp','desc');
   if (floor && floor !== 'all') q = q.where('floor','==',floor);
   if (counterComp && counterComp !== 'all') {
@@ -209,7 +267,6 @@ async function loadFilteredEntries(){
 }
 
 async function exportFilteredPdf(){
-  // reuse loadFilteredEntries logic but return rows
   const rows = await collectFilteredRows();
   if (!rows.length) return alert('No data to export');
   window.generatePdfFromRows(rows);
