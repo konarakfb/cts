@@ -114,7 +114,7 @@ function loadImage(file) {
     });
 }
 
-// Main generate button
+// Main button
 makeBtn.addEventListener("click", async () => {
 
     if (selected.length === 0) {
@@ -141,7 +141,7 @@ makeBtn.addEventListener("click", async () => {
     const usableW = W - border * 2;
     const usableH = (H - footerH) - border * 2;
 
-    // SINGLE IMAGE FULL VIEW
+    // SINGLE IMAGE
     if (selected.length === 1) {
         const img = await loadImage(selected[0]);
 
@@ -174,7 +174,7 @@ makeBtn.addEventListener("click", async () => {
         return;
     }
 
-    // MULTIPLE IMAGES GRID
+    // MULTIPLE IMAGE GRID
     const cols = 2;
     const rows = Math.ceil(selected.length / cols);
     const cellW = usableW / cols;
@@ -252,27 +252,38 @@ makeBtn.addEventListener("click", async () => {
     finalizeOutput();
 });
 
-// FOOTER + LOGO
+// FINAL FOOTER WITH LOGO (NO MORE LOADING ISSUES)
 function finalizeOutput() {
 
     const W = canvas.width;
     const H = canvas.height;
     const footerH = 180;
 
-    // Footer background
     ctx.fillStyle = "#333";
     ctx.fillRect(0, H - footerH, W, footerH);
 
     const logo = new Image();
     logo.src = document.getElementById("logo-img").src;
 
+    // If logo loads → draw with logo
     logo.onload = () => {
+        drawFooter(logo);
+    };
+
+    // If logo fails → draw without logo
+    logo.onerror = () => {
+        drawFooter(null);
+    };
+
+    function drawFooter(logoImg) {
 
         const logoSize = 120;
-        const logoY = H - footerH + (footerH - logoSize) / 2;
         const logoX = W / 2 - 350;
+        const logoY = H - footerH + (footerH - logoSize) / 2;
 
-        ctx.drawImage(logo, logoX, logoY, logoSize, logoSize);
+        if (logoImg) {
+            ctx.drawImage(logoImg, logoX, logoY, logoSize, logoSize);
+        }
 
         ctx.fillStyle = "#fff";
         ctx.textAlign = "left";
@@ -283,7 +294,7 @@ function finalizeOutput() {
         ctx.font = "30px Arial";
         ctx.fillText(new Date().toLocaleString(), logoX + logoSize + 30, logoY + 100);
 
-        // Limit final size under 5MB
+        // LIMIT OUTPUT TO 5MB
         let q = 0.92;
         let output = canvas.toDataURL("image/jpeg", q);
 
@@ -297,7 +308,7 @@ function finalizeOutput() {
 
         makeBtn.innerText = "Generate Collage";
         makeBtn.disabled = false;
-    };
+    }
 }
 </script>
 
