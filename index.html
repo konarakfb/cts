@@ -1,146 +1,266 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HD Collage Generator</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Konarak Collage HD</title>
 
 <style>
-  body {
-    margin: 0;
-    font-family: sans-serif;
-    padding-bottom: 100px; /* So content never hides under buttons */
-    background: #f5f5f5;
-  }
+    body {
+        margin: 0;
+        padding: 0;
+        background: #f28c2b;
+        font-family: Arial, sans-serif;
+    }
 
-  .container {
-    padding: 16px;
-  }
+    .box {
+        max-width: 900px;
+        margin: 20px auto;
+        background: #fff;
+        padding: 15px;
+        border-radius: 10px;
+        box-sizing: border-box;
+    }
 
-  /* ----- FIXED BUTTON BAR ----- */
-  .actions {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
+    #preview {
+        display: grid;
+        grid-template-columns: repeat(2,1fr);
+        gap: 10px;
+        margin-top: 15px;
+    }
 
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
+    #preview img {
+        width: 100%;
+        height: 150px;
+        object-fit: cover;
+        border: 8px solid #f28c2b;
+        border-radius: 6px;
+    }
 
-    padding: 14px;
-    background: #ffffff;
-    box-shadow: 0 -2px 12px rgba(0,0,0,0.20);
-    z-index: 9999;
-  }
+    button {
+        width: 100%;
+        padding: 14px;
+        margin-top: 12px;
+        background: #f28c2b;
+        border: none;
+        border-radius: 8px;
+        color: white;
+        font-weight: bold;
+        font-size: 17px;
+        cursor: pointer;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
 
-  .actions button {
-    flex: 1;
-    padding: 14px 0;
-    border: none;
-    border-radius: 8px;
-    background: #f28c2b;
-    color: #fff;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-  }
-
-  .actions button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  /* Canvas preview */
-  #finalCanvas {
-    max-width: 100%;
-    display: none;
-    margin-top: 20px;
-    border: 1px solid #ddd;
-  }
+    #download {
+        display:none;
+        width: 100%;
+        max-width: 100%;
+        margin-top: 15px;
+        padding: 14px;
+        background: #333;
+        color: #fff;
+        text-align:center;
+        text-decoration:none;
+        border-radius:8px;
+        box-sizing: border-box;
+        overflow: hidden;
+        word-wrap: break-word;
+    }
 </style>
 </head>
 
 <body>
 
-<div class="container">
-  <h2>HD Collage Generator</h2>
-
-  <input type="file" id="imageInput" multiple accept="image/*">
-
-  <canvas id="finalCanvas"></canvas>
+<div class="box">
+    <input id="files" type="file" accept="image/*" multiple>
+    <div id="preview"></div>
+    <button id="make">Generate Collage</button>
+    <a id="download" download="Konarak_HD.jpg">Download Final Image</a>
 </div>
 
-<!-- -------- BUTTON BAR -------- -->
-<div class="actions">
-  <button id="generateBtn">Generate Collage</button>
-  <button id="downloadBtn" disabled>Download Final Image</button>
-</div>
+<canvas id="canvas" style="display:none"></canvas>
 
 <script>
-document.getElementById("generateBtn").onclick = async function () {
-  const files = document.getElementById("imageInput").files;
+let selected = [];
+const filesInput = document.getElementById("files");
+const preview = document.getElementById("preview");
+const makeBtn = document.getElementById("make");
+const downloadBtn = document.getElementById("download");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
 
-  if (!files.length) {
-    alert("Please select images first.");
-    return;
-  }
+// IMAGE PREVIEW
+filesInput.addEventListener("change", () => {
+    preview.innerHTML = "";
+    selected = Array.from(filesInput.files);
+    selected.forEach(file => {
+        const img = document.createElement("img");
+        img.src = URL.createObjectURL(file);
+        preview.appendChild(img);
+    });
+});
 
-  document.getElementById("downloadBtn").disabled = true;
+// UNIVERSAL SAFE IMAGE LOADER
+function loadImage(file) {
+    return new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onload = e => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = () => resolve(null);
+            img.src = e.target.result;
+        };
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(file);
+    });
+}
 
-  // Load images
-  const images = [];
-  for (let f of files) {
-    const img = new Image();
-    img.src = URL.createObjectURL(f);
-    await img.decode();
-    images.push(img);
-  }
+makeBtn.addEventListener("click", async () => {
 
-  // Grid: always 2 per row
-  const imgWidth = 800;     // HD quality
-  const imgHeight = 800;    // square format
-
-  const rowWidth = imgWidth * 2;
-  const rows = Math.ceil(images.length / 2);
-
-  const finalWidth = rowWidth;
-  const finalHeight = rows * imgHeight;
-
-  const canvas = document.getElementById("finalCanvas");
-  const ctx = canvas.getContext("2d");
-
-  canvas.width = finalWidth;
-  canvas.height = finalHeight;
-
-  // White background
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // Draw images
-  images.forEach((img, i) => {
-    const row = Math.floor(i / 2);
-    const col = i % 2;
-
-    // If last row has uneven images → fill full width
-    if (images.length % 2 !== 0 && i === images.length - 1) {
-      ctx.drawImage(img, 0, row * imgHeight, finalWidth, imgHeight);
-    } else {
-      ctx.drawImage(img, col * imgWidth, row * imgHeight, imgWidth, imgHeight);
+    if (selected.length === 0) {
+        alert("Upload photos first.");
+        return;
     }
-  });
 
-  canvas.style.display = "block";
-  document.getElementById("downloadBtn").disabled = false;
-};
+    // HD canvas (2X resolution)
+    const W = 2500 * 2;   // 5000 px
+    const H = 3500 * 2;   // 7000 px
+    const footerH = 180 * 2;
+    const border = 40 * 2;
+    const thick = 20 * 2;
 
-document.getElementById("downloadBtn").onclick = function () {
-  const canvas = document.getElementById("finalCanvas");
-  const link = document.createElement("a");
-  link.download = "HD-Collage.png";
-  link.href = canvas.toDataURL("image/png", 1.0);
-  link.click();
-};
+    canvas.width = W;
+    canvas.height = H;
+
+    // Background orange
+    ctx.fillStyle = "#f28c2b";
+    ctx.fillRect(0,0,W,H);
+
+    const cols = 2;
+    const rows = Math.ceil(selected.length / cols);
+    const gridH = H - footerH;
+
+    const usableW = W - border * 2;
+    const usableH = gridH - border * 2;
+
+    const cellW = usableW / cols;
+    const cellH = usableH / rows;
+
+    let i = 0;
+
+    for (let r = 0; r < rows; r++) {
+
+        const lastRow = (r === rows - 1);
+        const odd = (selected.length % 2 === 1);
+
+        // LAST IMAGE STRETCHED ACROSS BOTH COLUMNS + EXTRA HEIGHT
+        if (lastRow && odd && i === selected.length - 1) {
+
+            const img = await loadImage(selected[i]);
+
+            const x = border;
+            const y = border + r * cellH;
+
+            const lastH = cellH * 1.4; // taller to reduce horizontal stretching
+            const lastW = usableW;
+
+            if (img) {
+                const scale = Math.max(lastW / img.width, lastH / img.height);
+                const newW = img.width * scale;
+                const newH = img.height * scale;
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(x, y, lastW, lastH);
+                ctx.clip();
+                ctx.drawImage(
+                    img,
+                    x + (lastW - newW)/2,
+                    y + (lastH - newH)/2,
+                    newW, newH
+                );
+                ctx.restore();
+            }
+
+            // Border
+            ctx.strokeStyle = "#d86f1b";
+            ctx.lineWidth = thick;
+            ctx.strokeRect(
+                x + thick/2,
+                y + thick/2,
+                lastW - thick,
+                lastH - thick
+            );
+
+            break;
+        }
+
+        // NORMAL 2-COLUMN DRAW
+        for (let c = 0; c < cols; c++) {
+
+            if (i >= selected.length) break;
+
+            const img = await loadImage(selected[i]);
+            const x = border + c * cellW;
+            const y = border + r * cellH;
+
+            if (img) {
+                const scale = Math.max(cellW / img.width, cellH / img.height);
+                const nW = img.width * scale;
+                const nH = img.height * scale;
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(x, y, cellW, cellH);
+                ctx.clip();
+                ctx.drawImage(
+                    img,
+                    x + (cellW - nW)/2,
+                    y + (cellH - nH)/2,
+                    nW, nH
+                );
+                ctx.restore();
+            }
+
+            // Inner border
+            ctx.strokeStyle = "#d86f1b";
+            ctx.lineWidth = thick;
+            ctx.strokeRect(
+                x + thick/2,
+                y + thick/2,
+                cellW - thick,
+                cellH - thick
+            );
+
+            i++;
+        }
+    }
+
+    // FOOTER
+    ctx.fillStyle = "#333";
+    ctx.fillRect(0, H-footerH, W, footerH);
+
+    ctx.fillStyle = "#fff";
+    ctx.textAlign = "center";
+    ctx.font = "bold 90px Arial";
+    ctx.fillText("Konarak Food & Beverages", W/2, H-footerH/2 - 20);
+
+    ctx.font = "50px Arial";
+    ctx.fillText(new Date().toLocaleString(), W/2, H-footerH/2 + 60);
+
+    // HD COMPRESSION — MUST BE ≤ 5MB
+    let quality = 0.95;
+    let output = canvas.toDataURL("image/jpeg", quality);
+
+    while (output.length / 1024 / 1024 > 5 && quality > 0.3) {
+        quality -= 0.03;
+        output = canvas.toDataURL("image/jpeg", quality);
+    }
+
+    downloadBtn.href = output;
+    downloadBtn.style.display = "block";
+});
 </script>
 
 </body>
