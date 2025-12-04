@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Konarak Collage</title>
+<title>Konarak Collage HD</title>
 
 <style>
     body {
@@ -68,8 +68,8 @@
 <div class="box">
     <input id="files" type="file" accept="image/*" multiple>
     <div id="preview"></div>
-    <button id="make">Generate Collage</button>
-    <a id="download" download="Konarak.jpg">Download Final Image</a>
+    <button id="make">Generate HD Collage</button>
+    <a id="download" download="Konarak-HD.jpg">Download Final Image</a>
 </div>
 
 <canvas id="canvas" style="display:none"></canvas>
@@ -81,7 +81,11 @@ const preview = document.getElementById("preview");
 const makeBtn = document.getElementById("make");
 const downloadBtn = document.getElementById("download");
 const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
+const ctx = canvas.getContext("2d", { alpha: false });
+
+// Enable HD smoothing
+ctx.imageSmoothingEnabled = true;
+ctx.imageSmoothingQuality = "high";
 
 // Preview thumbnails
 filesInput.addEventListener("change", () => {
@@ -94,7 +98,7 @@ filesInput.addEventListener("change", () => {
     });
 });
 
-// Universal image loader
+// Load image async
 function loadImage(file) {
     return new Promise(resolve => {
         const rd = new FileReader();
@@ -116,16 +120,17 @@ makeBtn.addEventListener("click", async () => {
         return;
     }
 
-    const W = 2500;
-    const H = 3500;
-    const footerH = 180;
-    const border = 40; // outer border
-    const thick = 20;  // inner border
+    // Bigger HD canvas
+    const W = 3500;
+    const H = 5000;
+    const footerH = 220;
+    const border = 40;
+    const thick = 22;
 
     canvas.width = W;
     canvas.height = H;
 
-    // Background orange
+    // HD background
     ctx.fillStyle = "#f28c2b";
     ctx.fillRect(0,0,W,H);
 
@@ -146,7 +151,6 @@ makeBtn.addEventListener("click", async () => {
         const lastRow = (r === rows - 1);
         const odd = (selected.length % 2 === 1);
 
-        // If last row & odd count → stretch final image across both columns
         if (lastRow && odd && i === selected.length - 1) {
 
             const img = await loadImage(selected[i]);
@@ -158,20 +162,13 @@ makeBtn.addEventListener("click", async () => {
 
             if (img) {
                 const scale = Math.max(w / img.width, h / img.height);
-                const newW = img.width * scale;
-                const newH = img.height * scale;
-
-                ctx.save();
-                ctx.beginPath();
-                ctx.rect(x, y, w, h);
-                ctx.clip();
-                ctx.drawImage(img,
-                    x + (w - newW)/2,
-                    y + (h - newH)/2,
-                    newW,
-                    newH
+                ctx.drawImage(
+                    img,
+                    x + (w - img.width * scale) / 2,
+                    y + (h - img.height * scale) / 2,
+                    img.width * scale,
+                    img.height * scale
                 );
-                ctx.restore();
             }
 
             ctx.strokeStyle = "#d86f1b";
@@ -181,7 +178,6 @@ makeBtn.addEventListener("click", async () => {
             break;
         }
 
-        // Normal 2-column draw
         for (let c = 0; c < cols; c++) {
             if (i >= selected.length) break;
 
@@ -191,23 +187,15 @@ makeBtn.addEventListener("click", async () => {
 
             if (img) {
                 const scale = Math.max(cellW / img.width, cellH / img.height);
-                const nW = img.width * scale;
-                const nH = img.height * scale;
-
-                ctx.save();
-                ctx.beginPath();
-                ctx.rect(x, y, cellW, cellH);
-                ctx.clip();
                 ctx.drawImage(
                     img,
-                    x + (cellW - nW)/2,
-                    y + (cellH - nH)/2,
-                    nW, nH
+                    x + (cellW - img.width * scale) / 2,
+                    y + (cellH - img.height * scale) / 2,
+                    img.width * scale,
+                    img.height * scale
                 );
-                ctx.restore();
             }
 
-            // Inner border
             ctx.strokeStyle = "#d86f1b";
             ctx.lineWidth = thick;
             ctx.strokeRect(x + thick/2, y + thick/2, cellW - thick, cellH - thick);
@@ -216,24 +204,25 @@ makeBtn.addEventListener("click", async () => {
         }
     }
 
-    // Footer
+    // Footer HD
     ctx.fillStyle = "#333";
     ctx.fillRect(0, H-footerH, W, footerH);
 
     ctx.fillStyle = "#fff";
     ctx.textAlign = "center";
-    ctx.font = "bold 50px Arial";
-    ctx.fillText("Konarak Food & Beverages", W/2, H-footerH/2 - 10);
-    ctx.font = "30px Arial";
-    ctx.fillText(new Date().toLocaleString(), W/2, H-footerH/2 + 40);
+    ctx.font = "bold 70px Arial";
+    ctx.fillText("Konarak Food & Beverages", W/2, H-footerH/2 - 20);
+
+    ctx.font = "40px Arial";
+    ctx.fillText(new Date().toLocaleString(), W/2, H-footerH/2 + 50);
 
     // Export under 5MB
-    let q = 0.92;
-    let output = canvas.toDataURL("image/jpeg", q);
+    let quality = 0.97;
+    let output = canvas.toDataURL("image/jpeg", quality);
 
-    while (output.length/1024/1024 > 5 && q > 0.3) {
-        q -= 0.05;
-        output = canvas.toDataURL("image/jpeg", q);
+    while (output.length / 1024 / 1024 > 5 && quality > 0.3) {
+        quality -= 0.05;
+        output = canvas.toDataURL("image/jpeg", quality);
     }
 
     downloadBtn.href = output;
