@@ -28,11 +28,10 @@
         margin-top: 15px;
     }
 
-    /* THUMBNAILS: fill the preview box (no crop) */
     #preview img {
         width: 100%;
         height: 150px;
-        object-fit: fill;
+        object-fit: cover;
         border: 8px solid #f28c2b;
         border-radius: 6px;
     }
@@ -116,7 +115,7 @@ filesInput.addEventListener("change", () => {
     downloadBtn.style.display = "none";
 });
 
-// Load a file and return image
+// Load image
 function loadImage(file) {
     return new Promise(resolve => {
         const reader = new FileReader();
@@ -129,7 +128,7 @@ function loadImage(file) {
     });
 }
 
-// Preload all images
+// Preload all
 async function preloadAll() {
     statusBox.style.display = "block";
     statusBox.innerText = "Preparing images...";
@@ -145,7 +144,7 @@ async function preloadAll() {
     statusBox.style.display = "none";
 }
 
-// Main generate button
+// Generate collage
 makeBtn.addEventListener("click", async () => {
 
     if (!selected.length) {
@@ -175,7 +174,9 @@ makeBtn.addEventListener("click", async () => {
     const usableW = W - border * 2;
     const usableH = (H - footerH) - border * 2;
 
-    // SINGLE IMAGE MODE — draw stretched to fill (no crop)
+    // ------------------------------
+    // SINGLE IMAGE MODE (unchanged)
+    // ------------------------------
     if (loadedImages.length === 1) {
         const img = loadedImages[0];
         const x = border;
@@ -183,8 +184,16 @@ makeBtn.addEventListener("click", async () => {
         const w = usableW;
         const h = usableH;
 
-        // Stretch/shrink to fill entire area
-        ctx.drawImage(img, x, y, w, h);
+        const scale = Math.min(w / img.width, h / img.height);
+        const newW = img.width * scale;
+        const newH = img.height * scale;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x, y, w, h);
+        ctx.clip();
+        ctx.drawImage(img, x + (w - newW)/2, y + (h - newH)/2, newW, newH);
+        ctx.restore();
 
         ctx.strokeStyle = "#d86f1b";
         ctx.lineWidth = thick;
@@ -194,61 +203,79 @@ makeBtn.addEventListener("click", async () => {
         return;
     }
 
-    // FIRST IMAGE IS MENU IMAGE (TOP 4 BOXES)
+    // -------------------------------------------
+    // FIRST IMAGE (MENU IMAGE) - NO CROPPING
+    // -------------------------------------------
     const menuImg = loadedImages[0];
     const remainingImages = loadedImages.slice(1);
 
     const menuH = usableH * 0.35;
 
-    // Big menu banner — stretch to fill (no crop)
     {
         const x = border;
         const y = border;
         const w = usableW;
         const h = menuH;
 
-        // draw stretched to fill cell
-        ctx.drawImage(menuImg, x, y, w, h);
+        // FIT image fully inside box (NO CROPPING)
+        const scale = Math.min(w / menuImg.width, h / menuImg.height);
+        const newW = menuImg.width * scale;
+        const newH = menuImg.height * scale;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x, y, w, h);
+        ctx.clip();
+        ctx.drawImage(menuImg, x + (w-newW)/2, y + (h-newH)/2, newW, newH);
+        ctx.restore();
 
         ctx.strokeStyle = "#d86f1b";
         ctx.lineWidth = thick;
         ctx.strokeRect(x + thick/2, y + thick/2, w - thick, h - thick);
     }
 
-    // Remaining images below (each cell stretched to fill)
+    // Remaining images (2 columns)
     const cols = 2;
     const startY = border + menuH + 20;
-
     const rows = Math.ceil(remainingImages.length / cols);
     const cellH = (usableH - menuH) / rows;
     const cellW = usableW / cols;
 
-    let index = 0;
+    let idx = 0;
 
     for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
 
-            if (index >= remainingImages.length) break;
+            if (idx >= remainingImages.length) break;
 
-            const img = remainingImages[index];
+            const img = remainingImages[idx];
             const x = border + c * cellW;
             const y = startY + r * cellH;
 
-            // draw stretched to fill cell (no crop)
-            ctx.drawImage(img, x, y, cellW, cellH);
+            // CROPPED fill for remaining images (unchanged)
+            const scale = Math.max(cellW / img.width, cellH / img.height);
+            const newW = img.width * scale;
+            const newH = img.height * scale;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(x, y, cellW, cellH);
+            ctx.clip();
+            ctx.drawImage(img, x + (cellW-newW)/2, y + (cellH-newH)/2, newW, newH);
+            ctx.restore();
 
             ctx.strokeStyle = "#d86f1b";
             ctx.lineWidth = thick;
             ctx.strokeRect(x + thick/2, y + thick/2, cellW - thick, cellH - thick);
 
-            index++;
+            idx++;
         }
     }
 
     finalizeOutput();
 });
 
-// FOOTER + LOGO + EXPORT (unchanged)
+// FOOTER EXACTLY LIKE YOUR SAMPLE
 function finalizeOutput() {
 
     const W = canvas.width;
@@ -261,11 +288,11 @@ function finalizeOutput() {
     logo.onload = () => {
 
         ctx.fillStyle = "#333";
-        ctx.fillRect(0, H-footerH, W, footerH);
+        ctx.fillRect(0, H - footerH, W, footerH);
 
-        // Draw logo left side
         const logoH = 95;
         const logoW = logo.width * (logoH / logo.height);
+
         const space = 25;
 
         const title = "Konarak Food & Beverages";
@@ -274,20 +301,20 @@ function finalizeOutput() {
 
         const totalWidth = logoW + space + titleWidth;
         const startX = (W - totalWidth) / 2;
-        const centerY = H - footerH / 2;
 
-        ctx.drawImage(logo, startX, centerY - logoH / 2, logoW, logoH);
+        const midY = H - footerH / 2;
+
+        ctx.drawImage(logo, startX, midY - logoH/2, logoW, logoH);
 
         ctx.fillStyle = "#fff";
         ctx.textAlign = "left";
         ctx.font = "bold 48px Arial";
-        ctx.fillText(title, startX + logoW + space, centerY - 8);
+        ctx.fillText(title, startX + logoW + space, midY - 8);
 
-        ctx.font = "30px Arial";
         ctx.textAlign = "center";
-        ctx.fillText(new Date().toLocaleString(), W/2, centerY + 42);
+        ctx.font = "30px Arial";
+        ctx.fillText(new Date().toLocaleString(), W/2, midY + 42);
 
-        // Export final image
         let q = 0.92;
         let output = canvas.toDataURL("image/jpeg", q);
 
