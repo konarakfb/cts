@@ -66,6 +66,9 @@
 
 <body>
 
+<!-- Hidden footer logo -->
+<img id="logo-img" src="konarak.png" style="display:none">
+
 <div class="box">
     <input id="files" type="file" accept="image/*" multiple>
     <div id="preview"></div>
@@ -95,7 +98,7 @@ filesInput.addEventListener("change", () => {
         preview.appendChild(img);
     });
 
-    downloadBtn.style.display = "none"; // Hide old download button
+    downloadBtn.style.display = "none";
 });
 
 // Load image helper
@@ -138,7 +141,7 @@ makeBtn.addEventListener("click", async () => {
     const usableW = W - border * 2;
     const usableH = (H - footerH) - border * 2;
 
-    // ⭐ SINGLE IMAGE FULL VIEW
+    // SINGLE IMAGE FULL VIEW
     if (selected.length === 1) {
         const img = await loadImage(selected[0]);
 
@@ -171,7 +174,7 @@ makeBtn.addEventListener("click", async () => {
         return;
     }
 
-    // ⭐ MULTIPLE IMAGES GRID
+    // MULTIPLE IMAGES GRID
     const cols = 2;
     const rows = Math.ceil(selected.length / cols);
     const cellW = usableW / cols;
@@ -249,40 +252,52 @@ makeBtn.addEventListener("click", async () => {
     finalizeOutput();
 });
 
-// Create final JPEG + show download button
+// FOOTER + LOGO
 function finalizeOutput() {
 
     const W = canvas.width;
     const H = canvas.height;
     const footerH = 180;
 
-    // Footer
+    // Footer background
     ctx.fillStyle = "#333";
-    ctx.fillRect(0, H-footerH, W, footerH);
+    ctx.fillRect(0, H - footerH, W, footerH);
 
-    ctx.fillStyle = "#fff";
-    ctx.textAlign = "center";
-    ctx.font = "bold 50px Arial";
-    ctx.fillText("Konarak Food & Beverages", W/2, H-footerH/2 - 10);
+    const logo = new Image();
+    logo.src = document.getElementById("logo-img").src;
 
-    ctx.font = "30px Arial";
-    ctx.fillText(new Date().toLocaleString(), W/2, H-footerH/2 + 40);
+    logo.onload = () => {
 
-    // Limit file size to 5MB
-    let q = 0.92;
-    let output = canvas.toDataURL("image/jpeg", q);
+        const logoSize = 120;
+        const logoY = H - footerH + (footerH - logoSize) / 2;
+        const logoX = W / 2 - 350;
 
-    while (output.length/1024/1024 > 5 && q > 0.3) {
-        q -= 0.05;
-        output = canvas.toDataURL("image/jpeg", q);
-    }
+        ctx.drawImage(logo, logoX, logoY, logoSize, logoSize);
 
-    downloadBtn.href = output;
-    downloadBtn.style.display = "block";
+        ctx.fillStyle = "#fff";
+        ctx.textAlign = "left";
 
-    // Reset generate button
-    makeBtn.innerText = "Generate Collage";
-    makeBtn.disabled = false;
+        ctx.font = "bold 50px Arial";
+        ctx.fillText("Konarak Food & Beverages", logoX + logoSize + 30, logoY + 55);
+
+        ctx.font = "30px Arial";
+        ctx.fillText(new Date().toLocaleString(), logoX + logoSize + 30, logoY + 100);
+
+        // Limit final size under 5MB
+        let q = 0.92;
+        let output = canvas.toDataURL("image/jpeg", q);
+
+        while (output.length/1024/1024 > 5 && q > 0.3) {
+            q -= 0.05;
+            output = canvas.toDataURL("image/jpeg", q);
+        }
+
+        downloadBtn.href = output;
+        downloadBtn.style.display = "block";
+
+        makeBtn.innerText = "Generate Collage";
+        makeBtn.disabled = false;
+    };
 }
 </script>
 
