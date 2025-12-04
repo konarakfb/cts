@@ -99,7 +99,7 @@ const canvas = document.getElementById("canvas");
 const statusBox = document.getElementById("status");
 const ctx = canvas.getContext("2d");
 
-// Preview images
+// Show preview thumbnails
 filesInput.addEventListener("change", () => {
     preview.innerHTML = "";
     selected = Array.from(filesInput.files);
@@ -115,7 +115,7 @@ filesInput.addEventListener("change", () => {
     downloadBtn.style.display = "none";
 });
 
-// Load images
+// Load a file and return image
 function loadImage(file) {
     return new Promise(resolve => {
         const reader = new FileReader();
@@ -128,7 +128,7 @@ function loadImage(file) {
     });
 }
 
-// Preload images
+// Preload all images
 async function preloadAll() {
     statusBox.style.display = "block";
     statusBox.innerText = "Preparing images...";
@@ -174,10 +174,9 @@ makeBtn.addEventListener("click", async () => {
     const usableW = W - border * 2;
     const usableH = (H - footerH) - border * 2;
 
-    // ONE IMAGE MODE
+    // SINGLE IMAGE MODE
     if (loadedImages.length === 1) {
         const img = loadedImages[0];
-
         const x = border;
         const y = border;
         const w = usableW;
@@ -188,6 +187,7 @@ makeBtn.addEventListener("click", async () => {
         const newH = img.height * scale;
 
         ctx.save();
+        ctx.beginPath();
         ctx.rect(x, y, w, h);
         ctx.clip();
         ctx.drawImage(img, x + (w - newW)/2, y + (h - newH)/2, newW, newH);
@@ -201,12 +201,13 @@ makeBtn.addEventListener("click", async () => {
         return;
     }
 
-    // MENU IMAGE (TOP 4 BOXES)
+    // FIRST IMAGE IS MENU IMAGE (TOP 4 BOXES)
     const menuImg = loadedImages[0];
     const remainingImages = loadedImages.slice(1);
 
     const menuH = usableH * 0.35;
 
+    // Big menu banner
     {
         const x = border;
         const y = border;
@@ -218,60 +219,31 @@ makeBtn.addEventListener("click", async () => {
         const nH = menuImg.height * scale;
 
         ctx.save();
+        ctx.beginPath();
         ctx.rect(x, y, w, h);
         ctx.clip();
         ctx.drawImage(menuImg, x + (w - nW)/2, y + (h - nH)/2, nW, nH);
         ctx.restore();
 
-        ctx.lineWidth = thick;
         ctx.strokeStyle = "#d86f1b";
+        ctx.lineWidth = thick;
         ctx.strokeRect(x + thick/2, y + thick/2, w - thick, h - thick);
     }
 
-    // REMAINING IMAGES BELOW
+    // Remaining images below
     const cols = 2;
     const startY = border + menuH + 20;
 
-    let index = 0;
-    let remaining = remainingImages.length;
-
-    const rows = Math.ceil(remaining / cols);
+    const rows = Math.ceil(remainingImages.length / cols);
     const cellH = (usableH - menuH) / rows;
     const cellW = usableW / cols;
 
+    let index = 0;
+
     for (let r = 0; r < rows; r++) {
-
-        // If last row has 1 image → MAKE IT FULL WIDTH
-        const isLastRow = (r === rows - 1);
-        const singleLeft = (remaining % 2 === 1 && index === remaining - 1);
-
-        if (isLastRow && singleLeft) {
-            const img = remainingImages[index];
-            const x = border;
-            const y = startY + r * cellH;
-            const w = usableW;
-            const h = cellH;
-
-            const scale = Math.max(w / img.width, h / img.height);
-            const nW = img.width * scale;
-            const nH = img.height * scale;
-
-            ctx.save();
-            ctx.rect(x, y, w, h);
-            ctx.clip();
-            ctx.drawImage(img, x + (w - nW)/2, y + (h - nH)/2, nW, nH);
-            ctx.restore();
-
-            ctx.lineWidth = thick;
-            ctx.strokeRect(x + thick/2, y + thick/2, w - thick, h - thick);
-
-            break;
-        }
-
-        // Normal 2-column grid
         for (let c = 0; c < cols; c++) {
 
-            if (index >= remaining) break;
+            if (index >= remainingImages.length) break;
 
             const img = remainingImages[index];
             const x = border + c * cellW;
@@ -282,11 +254,13 @@ makeBtn.addEventListener("click", async () => {
             const nH = img.height * scale;
 
             ctx.save();
+            ctx.beginPath();
             ctx.rect(x, y, cellW, cellH);
             ctx.clip();
             ctx.drawImage(img, x + (cellW - nW)/2, y + (cellH - nH)/2, nW, nH);
             ctx.restore();
 
+            ctx.strokeStyle = "#d86f1b";
             ctx.lineWidth = thick;
             ctx.strokeRect(x + thick/2, y + thick/2, cellW - thick, cellH - thick);
 
@@ -297,7 +271,7 @@ makeBtn.addEventListener("click", async () => {
     finalizeOutput();
 });
 
-// FOOTER WITH LOGO NEXT TO TEXT
+// FOOTER + LOGO + EXPORT
 function finalizeOutput() {
 
     const W = canvas.width;
@@ -312,26 +286,24 @@ function finalizeOutput() {
         ctx.fillStyle = "#333";
         ctx.fillRect(0, H-footerH, W, footerH);
 
-        // Center text first
+        // Draw logo left side
+        const logoH = 120;
+        const logoW = logo.width * (logoH / logo.height);
+        const logoX = 40;
+        const logoY = H - footerH + (footerH - logoH) / 2;
+
+        ctx.drawImage(logo, logoX, logoY, logoW, logoH);
+
+        // Center text
         ctx.fillStyle = "#fff";
         ctx.textAlign = "center";
         ctx.font = "bold 50px Arial";
         ctx.fillText("Konarak Food & Beverages", W/2, H-footerH/2 - 10);
 
-        // Now position logo JUST LEFT of text
-        const logoH = 80;
-        const logoW = logo.width * (logoH / logo.height);
-
-        const textCenterX = W / 2;
-        const logoX = textCenterX - (logoW + 20);  // 20px gap
-        const logoY = H - footerH + (footerH - logoH) / 2;
-
-        ctx.drawImage(logo, logoX, logoY, logoW, logoH);
-
         ctx.font = "30px Arial";
         ctx.fillText(new Date().toLocaleString(), W/2, H-footerH/2 + 40);
 
-        // Export
+        // Export final image
         let q = 0.92;
         let output = canvas.toDataURL("image/jpeg", q);
 
