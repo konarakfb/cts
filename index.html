@@ -9,15 +9,16 @@
     body {
         margin: 0;
         padding: 0;
-        background: #f28c2b; /* FULL ORANGE BACKGROUND */
+        background: #f28c2b;
         font-family: Arial, sans-serif;
     }
 
     .box {
         max-width: 900px;
         margin: 20px auto;
-        background: transparent; /* NO WHITE BACKGROUND */
+        background: #fff;
         padding: 15px;
+        border-radius: 10px;
     }
 
     #preview {
@@ -35,29 +36,29 @@
         border-radius: 6px;
     }
 
-    button, #download {
+    button {
         width: 100%;
-        padding: 13px;
+        padding: 14px;
         margin-top: 12px;
-        background: #333;
+        background: #f28c2b;
         border: none;
         border-radius: 8px;
         color: white;
         font-weight: bold;
-        font-size: 16px;
+        font-size: 17px;
         cursor: pointer;
-        text-align:center;
-        text-decoration:none;
-        display:block;
-    }
-
-    button {
-        background:#000;  /* MATCH LOOK */
     }
 
     #download {
         display:none;
-        background:#000;
+        width: 100%;
+        margin-top: 15px;
+        padding: 12px;
+        background: #333;
+        color: #fff;
+        text-align:center;
+        text-decoration:none;
+        border-radius:8px;
     }
 </style>
 </head>
@@ -67,7 +68,6 @@
 <div class="box">
     <input id="files" type="file" accept="image/*" multiple>
     <div id="preview"></div>
-
     <button id="make">Generate Collage</button>
     <a id="download" download="Konarak.jpg">Download Final Image</a>
 </div>
@@ -94,7 +94,7 @@ filesInput.addEventListener("change", () => {
     });
 });
 
-// Universal loader
+// Universal image loader
 function loadImage(file) {
     return new Promise(resolve => {
         const rd = new FileReader();
@@ -119,12 +119,13 @@ makeBtn.addEventListener("click", async () => {
     const W = 2500;
     const H = 3500;
     const footerH = 180;
-    const border = 40;
-    const thick = 20;
+    const border = 40; // outer border
+    const thick = 20;  // inner border
 
     canvas.width = W;
     canvas.height = H;
 
+    // Background orange
     ctx.fillStyle = "#f28c2b";
     ctx.fillRect(0,0,W,H);
 
@@ -145,6 +146,7 @@ makeBtn.addEventListener("click", async () => {
         const lastRow = (r === rows - 1);
         const odd = (selected.length % 2 === 1);
 
+        // If last row & odd count → stretch final image across both columns
         if (lastRow && odd && i === selected.length - 1) {
 
             const img = await loadImage(selected[i]);
@@ -179,6 +181,7 @@ makeBtn.addEventListener("click", async () => {
             break;
         }
 
+        // Normal 2-column draw
         for (let c = 0; c < cols; c++) {
             if (i >= selected.length) break;
 
@@ -204,6 +207,7 @@ makeBtn.addEventListener("click", async () => {
                 ctx.restore();
             }
 
+            // Inner border
             ctx.strokeStyle = "#d86f1b";
             ctx.lineWidth = thick;
             ctx.strokeRect(x + thick/2, y + thick/2, cellW - thick, cellH - thick);
@@ -212,6 +216,7 @@ makeBtn.addEventListener("click", async () => {
         }
     }
 
+    // Footer
     ctx.fillStyle = "#333";
     ctx.fillRect(0, H-footerH, W, footerH);
 
@@ -222,6 +227,7 @@ makeBtn.addEventListener("click", async () => {
     ctx.font = "30px Arial";
     ctx.fillText(new Date().toLocaleString(), W/2, H-footerH/2 + 40);
 
+    // Export under 5MB
     let q = 0.92;
     let output = canvas.toDataURL("image/jpeg", q);
 
