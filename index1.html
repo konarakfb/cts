@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Konarak Collage</title>
+
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        background: #f28c2b;
+        font-family: Arial, sans-serif;
+    }
+
+    .box {
+        max-width: 900px;
+        margin: 20px auto;
+        background: #f28c2b;
+        padding: 15px;
+        border-radius: 10px;
+    }
+
+    #preview {
+        display: grid;
+        grid-template-columns: repeat(2,1fr);
+        gap: 10px;
+        margin-top: 15px;
+    }
+
+    #preview img {
+        width: 100%;
+        height: 150px;
+        object-fit: cover;
+        border: 8px solid #f28c2b;
+        border-radius: 6px;
+    }
+
+    button {
+        width: 100%;
+        padding: 14px;
+        margin-top: 12px;
+        background: #fff;
+        border: none;
+        border-radius: 8px;
+        color: #f28c2b;
+        font-weight: bold;
+        font-size: 17px;
+        cursor: pointer;
+    }
+
+    #download {
+        display:none;
+        width: 100%;
+        margin-top: 15px;
+        padding: 12px;
+        background: #333;
+        color: #fff;
+        text-align:center;
+        text-decoration:none;
+        border-radius:8px;
+    }
+</style>
+</head>
+
+<body>
+
+<div class="box">
+    <input id="files" type="file" accept="image/*" multiple>
+    <div id="preview"></div>
+    <button id="make">Generate Collage</button>
+    <a id="download" download="Konarak.jpg">Download Final Image</a>
+</div>
+
+<canvas id="canvas" style="display:none"></canvas>
+
+<script>
+let selected = [];
+const filesInput = document.getElementById("files");
+const preview = document.getElementById("preview");
+const makeBtn = document.getElementById("make");
+const downloadBtn = document.getElementById("download");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+// Preview thumbnails
+filesInput.addEventListener("change", () => {
+    preview.innerHTML = "";
+    selected = Array.from(filesInput.files);
+    selected.forEach(file => {
+        const img = document.createElement("img");
+        img.src = URL.createObjectURL(file);
+        preview.appendChild(img);
+    });
+});
+
+// Load image helper
+function loadImage(file) {
+    return new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onload = e => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+makeBtn.addEventListener("click", async () => {
+
+    if (selected.length === 0) {
+        alert("Upload photos first.");
+        return;
+    }
+
+    const W = 2500;
+    const H = 3500;
+    const footerH = 180;
+    const border = 40;
+    const thick = 20;
+
+    canvas.width = W;
+    canvas.height = H;
+
+    ctx.fillStyle = "#f28c2b";
+    ctx.fillRect(0,0,W,H);
+
+    const gridH = H - footerH;
+    const usableW = W - border * 2;
+    const usableH = gridH - border * 2;
+
+    // ⭐ SPECIAL CASE: ONLY ONE IMAGE → SHOW FULL IMAGE WITHOUT CROPPING
+    if (selected.length === 1) {
+        const img = await loadImage(selected[0]);
+
+        const x = border;
+        const y = border;
+        const w = usableW;
+        const h = usableH;
+
+        const scale = Math.min(w / img.width, h / img.height);
+        const newW = img.width * scale;
+        const newH = img.height * scale;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x, y, w, h);
+        ctx.clip();
+        ctx.drawImage(
+            img,
+            x + (w - newW)/2,
+            y + (h - newH)/2,
+            newW, newH
+        );
+        ctx.restore();
+
+        ctx.strokeStyle = "#d86f1b";
+        ctx.lineWidth = thick;
+        ctx.strokeRect(x + thick/2, y + thick/2, w - thick, h - thick);
+    }
+
+    // ⭐ MULTI-IMAGE GRID (unchanged)
+    else {
+        const cols = 2;
+        const rows = Math.ceil(selected.length / cols);
+        const cellW = usableW / cols;
+        const cellH = usableH / rows;
+
+        let i = 0;
+
+        for (let r = 0; r < rows; r++) {
+
+            const lastRow = (r === rows - 1);
+            const odd = (selected.length % 2 === 1);
+
+            if (lastRow && odd && i === selected.length - 1) {
+                const img = await loadImage(selected[i]);
+
+                const x = border;
+                const y = border + r * cellH;
+                const w = usableW;
+                const h = cellH;
+
+                const scale = Math.max(w / img.width, h / img.height);
+                const newW = img.width * scale;
+                const newH = img.height * scale;
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(x, y, w, h);
+                ctx.clip();
+                ctx.drawImage(img,
+                    x + (w - newW)/2,
+                    y + (h - newH)/2,
+                    newW, newH
+                );
+                ctx.restore();
+
+                ctx.strokeStyle = "#d86f1b";
+                ctx.lineWidth = thick;
+                ctx.strokeRect(x + thick/2, y + thick/2, w - thick, h - thick);
+
+                break;
+            }
+
+            for (let c = 0; c < cols; c++) {
+                if (i >= selected.length) break;
+
+                const img = await loadImage(selected[i]);
+                const x = border + c * cellW;
+                const y = border + r * cellH;
+
+                const scale = Math.max(cellW / img.width, cellH / img.height);
+                const nW = img.width * scale;
+                const nH = img.height * scale;
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(x, y, cellW, cellH);
+                ctx.clip();
+                ctx.drawImage(img,
+                    x + (cellW - nW)/2,
+                    y + (cellH - nH)/2,
+                    nW, nH
+                );
+                ctx.restore();
+
+                ctx.strokeStyle = "#d86f1b";
+                ctx.lineWidth = thick;
+                ctx.strokeRect(x + thick/2, y + thick/2, cellW - thick, cellH - thick);
+
+                i++;
+            }
+        }
+    }
+
+    // Footer
+    ctx.fillStyle = "#333";
+    ctx.fillRect(0, H-footerH, W, footerH);
+
+    ctx.fillStyle = "#fff";
+    ctx.textAlign = "center";
+    ctx.font = "bold 50px Arial";
+    ctx.fillText("Konarak Food & Beverages", W/2, H-footerH/2 - 10);
+    ctx.font = "30px Arial";
+    ctx.fillText(new Date().toLocaleString(), W/2, H-footerH/2 + 40);
+
+    // Reduce size max 5MB
+    let q = 0.92;
+    let output = canvas.toDataURL("image/jpeg", q);
+
+    while (output.length/1024/1024 > 5 && q > 0.3) {
+        q -= 0.05;
+        output = canvas.toDataURL("image/jpeg", q);
+    }
+
+    downloadBtn.href = output;
+    downloadBtn.style.display = "block";
+});
+</script>
+
+</body>
+</html>
