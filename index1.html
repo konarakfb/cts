@@ -175,7 +175,7 @@ makeBtn.addEventListener("click", async () => {
     const usableH = (H - footerH) - border * 2;
 
     // ------------------------------
-    // SINGLE IMAGE MODE (unchanged)
+    // SINGLE IMAGE MODE
     // ------------------------------
     if (loadedImages.length === 1) {
         const img = loadedImages[0];
@@ -204,7 +204,7 @@ makeBtn.addEventListener("click", async () => {
     }
 
     // -------------------------------------------
-    // FIRST IMAGE (MENU IMAGE) - NO CROPPING
+    // FIRST IMAGE (MENU IMAGE) - FIT, NO CROPPING
     // -------------------------------------------
     const menuImg = loadedImages[0];
     const remainingImages = loadedImages.slice(1);
@@ -217,7 +217,7 @@ makeBtn.addEventListener("click", async () => {
         const w = usableW;
         const h = menuH;
 
-        // FIT image fully inside box (NO CROPPING)
+        // FIT full image inside box (no cropping)
         const scale = Math.min(w / menuImg.width, h / menuImg.height);
         const newW = menuImg.width * scale;
         const newH = menuImg.height * scale;
@@ -252,7 +252,7 @@ makeBtn.addEventListener("click", async () => {
             const x = border + c * cellW;
             const y = startY + r * cellH;
 
-            // CROPPED fill for remaining images (unchanged)
+            // Crop fill
             const scale = Math.max(cellW / img.width, cellH / img.height);
             const newW = img.width * scale;
             const newH = img.height * scale;
@@ -275,7 +275,7 @@ makeBtn.addEventListener("click", async () => {
     finalizeOutput();
 });
 
-// FOOTER EXACTLY LIKE YOUR SAMPLE
+// FOOTER EXACTLY LIKE SAMPLE (TEXT SIZE REDUCED)
 function finalizeOutput() {
 
     const W = canvas.width;
@@ -296,7 +296,9 @@ function finalizeOutput() {
         const space = 25;
 
         const title = "Konarak Food & Beverages";
-        ctx.font = "bold 48px Arial";
+
+        // UPDATED SIZE: 42px (looks perfect with logo)
+        ctx.font = "bold 42px Arial";
         const titleWidth = ctx.measureText(title).width;
 
         const totalWidth = logoW + space + titleWidth;
@@ -308,12 +310,12 @@ function finalizeOutput() {
 
         ctx.fillStyle = "#fff";
         ctx.textAlign = "left";
-        ctx.font = "bold 48px Arial";
-        ctx.fillText(title, startX + logoW + space, midY - 8);
+        ctx.font = "bold 42px Arial";
+        ctx.fillText(title, startX + logoW + space, midY - 6);
 
         ctx.textAlign = "center";
         ctx.font = "30px Arial";
-        ctx.fillText(new Date().toLocaleString(), W/2, midY + 42);
+        ctx.fillText(new Date().toLocaleString(), W/2, midY + 40);
 
         let q = 0.92;
         let output = canvas.toDataURL("image/jpeg", q);
@@ -326,7 +328,7 @@ function finalizeOutput() {
         downloadBtn.href = output;
         downloadBtn.style.display = "block";
 
-        makeBtn.innerText = "Generate Collage";
+        makeBtn.innerText = "Generate Collage"; 
         makeBtn.disabled = false;
     };
 }
