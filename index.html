@@ -3,28 +3,28 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Konarak | Image Collage Generator</title>
+<title>Konarak | Collage Generator</title>
 
 <style>
     :root {
         --accent: #f28c2b;
         --dark: #2b2b2b;
-        --card: #fff;
+        --bg: #ffffff;
     }
 
     body {
+        background: #f5f5f5;
         margin: 0;
-        background: #f2f2f2;
         font-family: Arial, sans-serif;
     }
 
     header {
         background: var(--accent);
         padding: 18px;
-        color: #fff;
+        text-align: center;
         font-size: 22px;
         font-weight: bold;
-        text-align: center;
+        color: #fff;
     }
 
     .container {
@@ -34,10 +34,10 @@
     }
 
     .card {
-        background: var(--card);
+        background: #fff;
         padding: 20px;
         border-radius: 12px;
-        box-shadow: 0 4px 18px rgba(0,0,0,0.08);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
     }
 
     #preview {
@@ -51,40 +51,43 @@
         width: 100%;
         height: 220px;
         object-fit: cover;
-        border-radius: 10px;
-        border: 2px solid #fff;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border-radius: 8px;
+        border: 4px solid var(--accent);
     }
 
     button {
+        margin-top: 20px;
+        width: 100%;
+        padding: 14px;
         background: var(--accent);
         border: none;
-        color: #fff;
-        padding: 14px 18px;
+        color: white;
         font-size: 17px;
         border-radius: 8px;
-        cursor: pointer;
-        width: 100%;
-        margin-top: 12px;
         font-weight: bold;
+        cursor: pointer;
+    }
+
+    button:hover {
+        background: #df7f1f;
     }
 
     #downloadLink {
         display: none;
+        margin-top: 20px;
+        padding: 12px 20px;
         background: var(--dark);
-        padding: 12px 18px;
-        color: #fff;
+        color: white;
+        font-size: 17px;
         border-radius: 8px;
         text-decoration: none;
-        font-size: 17px;
-        margin-top: 20px;
         display: inline-block;
     }
 </style>
 </head>
 <body>
 
-<header>Konarak Food & Beverages — Image Collage Generator</header>
+<header>Konarak Food & Beverages — Collage Generator</header>
 
 <div class="container">
     <div class="card">
@@ -95,7 +98,8 @@
 
         <button id="generateBtn">Generate Final Collage</button>
 
-        <a id="downloadLink" download="konarak-collage.png">Download Final Image</a>
+        <a id="downloadLink" download="konarak-collage.jpg">Download Final Image</a>
+
     </div>
 </div>
 
@@ -107,9 +111,9 @@ const preview = document.getElementById("preview");
 let imageFiles = [];
 
 // Show preview thumbnails
-input.addEventListener("change", function() {
+input.addEventListener("change", () => {
     preview.innerHTML = "";
-    imageFiles = Array.from(this.files);
+    imageFiles = Array.from(input.files);
 
     imageFiles.forEach(file => {
         const img = document.createElement("img");
@@ -121,59 +125,63 @@ input.addEventListener("change", function() {
 document.getElementById("generateBtn").addEventListener("click", async () => {
 
     if (imageFiles.length === 0) {
-        alert("Please upload images first.");
+        alert("Please upload some photos.");
         return;
     }
 
     const canvas = document.getElementById("canvas");
     const ctx = canvas.getContext("2d");
 
-    // Layout: 2 columns
-    const cols = 2;
+    // FIXED uniform size for ALL images
+    const cell = 900;                // Each final image cell = 900×900
+    const cols = 2;                  // 2 columns
     const rows = Math.ceil(imageFiles.length / cols);
 
-    // Each sub-image size (equal size)
-    const cell = 900;
+    const gap = 30;                  // spacing between images
+    const border = 40;               // orange border around entire collage
+    const footer = 180;              // branding footer height
 
-    // Border space between images
-    const gap = 20;
+    // Total canvas resolution
+    canvas.width = (cell * cols) + (gap * (cols + 1)) + border * 2;
+    canvas.height = (cell * rows) + (gap * (rows + 1)) + border * 2 + footer;
 
-    // White outer border
-    const outerBorder = 40;
-
-    // Footer height (branding)
-    const footer = 180;
-
-    // Total canvas size
-    canvas.width = cols * cell + (cols + 1) * gap + outerBorder * 2;
-    canvas.height = rows * cell + (rows + 1) * gap + outerBorder * 2 + footer;
-
-    // Fill background white
+    // Background: white
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+    // Outer orange border
+    ctx.strokeStyle = "#f28c2b";
+    ctx.lineWidth = 20;
+    ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+
     let x = 0, y = 0;
 
-    // Draw each uploaded image
+    // Draw each image
     for (let i = 0; i < imageFiles.length; i++) {
 
-        let imgBitmap = await createImageBitmap(imageFiles[i]);
+        const img = await createImageBitmap(imageFiles[i]);
 
-        const drawX = outerBorder + gap + (x * (cell + gap));
-        const drawY = outerBorder + gap + (y * (cell + gap));
+        const drawX = border + gap + (x * (cell + gap));
+        const drawY = border + gap + (y * (cell + gap));
 
-        // Crop-fit like CSS object-fit: cover
-        const scale = Math.max(cell / imgBitmap.width, cell / imgBitmap.height);
-        const w = imgBitmap.width * scale;
-        const h = imgBitmap.height * scale;
+        // Crop-to-fit like Instagram thumbnails
+        const scale = Math.max(cell / img.width, cell / img.height);
+        const newW = img.width * scale;
+        const newH = img.height * scale;
 
-        ctx.drawImage(
-            imgBitmap,
-            drawX + (cell - w) / 2,
-            drawY + (cell - h) / 2,
-            w,
-            h
-        );
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(drawX, drawY, cell, cell);
+        ctx.clip();
+
+        ctx.drawImage(img, drawX + (cell - newW) / 2, drawY + (cell - newH) / 2, newW, newH);
+        
+        ctx.restore();
+
+        // Add orange border around each image
+        ctx.strokeStyle = "#f28c2b";
+        ctx.lineWidth = 12;
+        ctx.strokeRect(drawX, drawY, cell, cell);
 
         x++;
         if (x >= cols) {
@@ -182,32 +190,30 @@ document.getElementById("generateBtn").addEventListener("click", async () => {
         }
     }
 
-    // Footer background
-    ctx.fillStyle = "rgba(0,0,0,0.65)";
-    ctx.fillRect(
-        0,
-        canvas.height - footer,
-        canvas.width,
-        footer
-    );
+    // Footer branding
+    ctx.fillStyle = "rgba(0,0,0,0.7)";
+    ctx.fillRect(0, canvas.height - footer, canvas.width, footer);
 
-    // Branding text
-    ctx.fillStyle = "white";
+    ctx.fillStyle = "#fff";
     ctx.font = "bold 60px Arial";
     ctx.textAlign = "center";
-    ctx.fillText("Konarak Food & Beverages", canvas.width / 2, canvas.height - 90);
+    ctx.fillText("Konarak Food & Beverages", canvas.width / 2, canvas.height - 100);
 
-    // Timestamp
     ctx.font = "32px Arial";
-    const timestamp = new Date().toLocaleString();
-    ctx.fillText(timestamp, canvas.width / 2, canvas.height - 40);
+    ctx.fillText(new Date().toLocaleString(), canvas.width / 2, canvas.height - 45);
 
-    // Export final image
-    const finalURL = canvas.toDataURL("image/png");
+    // Export JPG with controlled quality (to keep <5MB)
+    let quality = 0.85;
+    let dataURL = canvas.toDataURL("image/jpeg", quality);
+
+    while (dataURL.length / 1024 / 1024 > 5) {
+        quality -= 0.05;
+        dataURL = canvas.toDataURL("image/jpeg", quality);
+    }
+
     const link = document.getElementById("downloadLink");
-    link.href = finalURL;
+    link.href = dataURL;
     link.style.display = "inline-block";
-
 });
 </script>
 
