@@ -1,210 +1,266 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Konarak Collage (Perfect Fill)</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Konarak — Collage (Mobile-friendly)</title>
 
 <style>
-    :root {
-        --accent: #f28c2b;
-        --bg: #e6e6e6; /* light grey background instead of white */
-    }
-    body {
-        background: #f5f5f5;
-        margin: 0;
-        font-family: Arial;
-    }
-    header {
-        background: var(--accent);
-        padding: 16px;
-        color: #fff;
-        text-align: center;
-        font-weight: bold;
-        font-size: 20px;
-    }
-    .box {
-        max-width: 900px;
-        margin: 20px auto;
-        background: #fff;
-        padding: 18px;
-        border-radius: 12px;
-        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-    }
-    #preview {
-        display: grid;
-        grid-template-columns: repeat(2,1fr);
-        gap: 12px;
-        margin-top: 15px;
-    }
-    #preview img {
-        width: 100%;
-        height: 180px;
-        object-fit: cover;
-        border: 4px solid var(--accent);
-        border-radius: 6px;
-    }
-    button {
-        width: 100%;
-        background: var(--accent);
-        border: none;
-        padding: 14px;
-        font-size: 17px;
-        border-radius: 8px;
-        color: #fff;
-        cursor: pointer;
-        margin-top: 12px;
-        font-weight: bold;
-    }
-    #download {
-        display: none;
-        margin-top: 18px;
-        padding: 12px 18px;
-        background: #333;
-        color: #fff;
-        border-radius: 8px;
-        text-decoration: none;
-        display: inline-block;
-        font-size: 16px;
-    }
+  :root{
+    --accent: #f28c2b;      /* brand orange */
+    --accent-dark: #d86f1b; /* slightly darker border */
+    --ui-bg: #fafafa;
+    --card: #ffffff;
+    --text: #222;
+  }
+  html,body{height:100%;margin:0;background:var(--ui-bg);font-family:Segoe UI,Roboto,Arial,sans-serif;color:var(--text)}
+  header{background:var(--accent);color:#fff;padding:14px 16px;font-weight:700;text-align:center}
+  .wrap{max-width:980px;margin:18px auto;padding:12px}
+  .card{background:var(--card);border-radius:10px;padding:14px;box-shadow:0 6px 18px rgba(0,0,0,.08)}
+  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  label{font-weight:700;margin-bottom:8px;display:block}
+  input[type=file]{display:block;width:100%}
+  #preview{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:12px}
+  #preview img{width:100%;height:140px;object-fit:cover;border-radius:8px;border:6px solid var(--accent);box-sizing:border-box}
+  button{width:100%;margin-top:12px;padding:12px;border-radius:8px;border:0;background:var(--accent);color:#fff;font-weight:700;font-size:16px;cursor:pointer}
+  a#download{display:none;margin-top:12px;padding:10px 14px;border-radius:8px;background:#333;color:#fff;text-decoration:none;display:inline-block}
+  .small{font-size:13px;color:#666;margin-top:8px}
+  .final-preview{margin-top:16px;border-radius:8px;overflow:hidden;border:6px solid var(--accent-dark);background:#fff;display:flex;justify-content:center;padding:8px}
+  .final-preview img{max-width:100%;height:auto;display:block}
+  @media (max-width:520px){
+    #preview img{height:100px}
+    .final-preview{padding:6px}
+    button{font-size:15px}
+  }
 </style>
 </head>
-
 <body>
+  <header>Konarak Food & Beverages — Collage Generator</header>
 
-<header>Konarak Food & Beverages — Final Collage Generator</header>
+  <div class="wrap">
+    <div class="card">
+      <label>Choose photos (multiple)</label>
+      <input id="files" type="file" accept="image/*" multiple />
+      <div id="preview"></div>
 
-<div class="box">
-    <input id="files" type="file" multiple accept="image/*">
-    <div id="preview"></div>
+      <button id="generateBtn">Generate Collage (2500×3500)</button>
+      <a id="download" download="Konarak-collage.jpg">Download Final Image</a>
+      <div class="small">Final canvas fixed at 2500×3500 px. 2 columns. Images will auto-fit to cover each cell. Export capped ≤ 5 MB.</div>
 
-    <button id="create">Generate Collage</button>
-    <a id="download" download="Konarak-Collage.jpg">Download</a>
-</div>
+      <div class="final-preview" id="finalWrap" style="display:none;">
+        <img id="finalImg" alt="Final collage preview"/>
+      </div>
+    </div>
+  </div>
 
-<canvas id="canvas" style="display:none;"></canvas>
+  <canvas id="canvas" style="display:none"></canvas>
 
 <script>
-const input = document.getElementById("files");
-const preview = document.getElementById("preview");
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
-const downloadBtn = document.getElementById("download");
-let images = [];
+(function(){
+  const ACCENT = '#f28c2b';
+  const ACCENT_D = '#d86f1b';
+  const FINAL_W = 2500;
+  const FINAL_H = 3500;
+  const FOOTER_H = 160;
 
-// Preview thumbnails
-input.addEventListener("change", () => {
-    preview.innerHTML = "";
-    images = Array.from(input.files);
+  const filesInput = document.getElementById('files');
+  const preview = document.getElementById('preview');
+  const generateBtn = document.getElementById('generateBtn');
+  const download = document.getElementById('download');
+  const canvas = document.getElementById('canvas');
+  const finalWrap = document.getElementById('finalWrap');
+  const finalImg = document.getElementById('finalImg');
 
-    images.forEach(file => {
-        const img = document.createElement("img");
-        img.src = URL.createObjectURL(file);
-        preview.appendChild(img);
+  let fileList = [];
+
+  filesInput.addEventListener('change', (e) => {
+    preview.innerHTML = '';
+    fileList = Array.from(e.target.files || []);
+    fileList.forEach(f => {
+      const img = document.createElement('img');
+      img.src = URL.createObjectURL(f);
+      preview.appendChild(img);
     });
-});
+  });
 
-// Safe image loader
-function loadIMG(file) {
-    return new Promise(resolve => {
+  // Robust loader: attempt to read as DataURL then Image element
+  function loadFileAsImage(file){
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onerror = () => resolve(null);
+      reader.onload = () => {
         const img = new Image();
         img.onload = () => resolve(img);
         img.onerror = () => resolve(null);
-        img.src = URL.createObjectURL(file);
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
     });
-}
+  }
 
-document.getElementById("create").addEventListener("click", async () => {
-    if (images.length === 0) {
-        alert("Upload photos first.");
-        return;
-    }
+  async function generateCollage(){
+    if (!fileList.length){ alert('Please upload images.'); return; }
 
-    // FIXED final canvas
-    const W = 2500;
-    const H = 3500;
-    const footerH = 160;
+    // prepare canvas
+    canvas.width = FINAL_W;
+    canvas.height = FINAL_H;
+    const ctx = canvas.getContext('2d');
 
-    canvas.width = W;
-    canvas.height = H;
+    // fill with brand orange background (no white anywhere)
+    ctx.fillStyle = ACCENT;
+    ctx.fillRect(0,0, FINAL_W, FINAL_H);
 
-    // Background (non-white)
-    ctx.fillStyle = "#e6e6e6";
-    ctx.fillRect(0,0,W,H);
-
+    // compute grid
     const cols = 2;
-    const rows = Math.ceil(images.length / 2);
+    const count = fileList.length;
+    const rows = Math.ceil(count / cols);
 
-    const gap = 20;
-    const usableH = H - footerH - gap*2;
+    // gaps: we'll use thin gap but keep orange background visible around as requested
+    const gap = 18; // between cells
+    // compute available area inside left/right margins: we will not leave outer white — background orange covers everything
+    // calculate maximum cell size to fill grid area (we allow grid to be vertically centered, no white)
+    const usableW = FINAL_W - gap * (cols + 1);
+    const usableH = FINAL_H - FOOTER_H - gap * (rows + 1);
 
-    let cell = Math.floor((usableH - gap*(rows+1)) / rows);
-    if (cell < 200) cell = 200; // minimum cell size
+    // choose cell to equally fit
+    let cellW = Math.floor(usableW / cols);
+    let cellH = Math.floor(usableH / rows);
+    let cell = Math.min(cellW, cellH);
 
-    const usableW = W - gap*2;
-    const maxCellW = Math.floor((usableW - gap*(cols+1)) / cols);
-    cell = Math.min(cell, maxCellW);
+    // if too small, force min size
+    if (cell < 100) cell = 100;
 
+    // recompute exact grid width & height
     const gridW = cols * cell + gap * (cols + 1);
     const gridH = rows * cell + gap * (rows + 1);
 
-    const startX = (W - gridW) / 2;
-    const startY = gap;
+    // center grid horizontally and vertically (top area), leave footer below
+    const startX = Math.round((FINAL_W - gridW) / 2);
+    const startY = Math.round((FINAL_H - FOOTER_H - gridH) / 2);
 
-    let x = 0, y = 0;
+    // draw each image into cell (cover)
+    let idx = 0;
+    for (let r = 0; r < rows; r++){
+      for (let c = 0; c < cols; c++){
+        if (idx >= count) break;
+        const posX = startX + gap + c * (cell + gap);
+        const posY = startY + gap + r * (cell + gap);
 
-    for (let i = 0; i < images.length; i++) {
-        const img = await loadIMG(images[i]);
+        // draw background for cell (same orange so seamless)
+        ctx.fillStyle = ACCENT;
+        ctx.fillRect(posX, posY, cell, cell);
 
-        const posX = startX + gap + x * (cell + gap);
-        const posY = startY + gap + y * (cell + gap);
-
-        if (img) {
-            const scale = Math.max(cell / img.width, cell / img.height);
-            const newW = img.width * scale;
-            const newH = img.height * scale;
-
-            ctx.save();
-            ctx.beginPath();
-            ctx.rect(posX, posY, cell, cell);
-            ctx.clip();
-            ctx.drawImage(img, posX + (cell - newW)/2, posY + (cell - newH)/2, newW, newH);
-            ctx.restore();
+        // load image robustly with retry if needed
+        let img = await loadFileAsImage(fileList[idx]);
+        if (!img) {
+          // fallback: create small placeholder with darker accent to avoid blank
+          const ph = document.createElement('canvas');
+          ph.width = cell; ph.height = cell;
+          const phCtx = ph.getContext('2d');
+          phCtx.fillStyle = ACCENT_D;
+          phCtx.fillRect(0,0,cell,cell);
+          img = ph;
         }
 
-        // Orange border ONLY
-        ctx.strokeStyle = "#f28c2b";
-        ctx.lineWidth = 14;
-        ctx.strokeRect(posX, posY, cell, cell);
+        // draw image cover
+        const scale = Math.max(cell / img.width, cell / img.height);
+        const drawW = img.width * scale;
+        const drawH = img.height * scale;
+        const dx = posX + (cell - drawW) / 2;
+        const dy = posY + (cell - drawH) / 2;
 
-        x++;
-        if (x >= cols) { x = 0; y++; }
+        // clip to cell to avoid bleed
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(posX, posY, cell, cell);
+        ctx.clip();
+        ctx.drawImage(img, dx, dy, drawW, drawH);
+        ctx.restore();
+
+        // draw cell border (darker accent)
+        ctx.lineWidth = Math.max(6, Math.round(cell * 0.012)); // responsive border width
+        ctx.strokeStyle = ACCENT_D;
+        ctx.strokeRect(posX + ctx.lineWidth/2, posY + ctx.lineWidth/2, cell - ctx.lineWidth, cell - ctx.lineWidth);
+
+        idx++;
+      }
     }
 
-    // Footer
-    ctx.fillStyle = "rgba(0,0,0,0.75)";
-    ctx.fillRect(0, H-footerH, W, footerH);
+    // Footer bar (dark)
+    ctx.fillStyle = '#333';
+    ctx.fillRect(0, FINAL_H - FOOTER_H, FINAL_W, FOOTER_H);
 
-    ctx.fillStyle = "#fff";
-    ctx.font = "bold 52px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText("Konarak Food & Beverages", W/2, H-footerH+60);
+    // Branding text
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 44px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Konarak Food & Beverages', FINAL_W/2, FINAL_H - FOOTER_H/2 - 8);
 
-    ctx.font = "32px Arial";
-    ctx.fillText(new Date().toLocaleString(), W/2, H-footerH+110);
+    // Timestamp
+    ctx.font = '28px Arial';
+    ctx.fillText(new Date().toLocaleString(), FINAL_W/2, FINAL_H - FOOTER_H/2 + 34);
 
-    // 5MB restriction
-    let q = 0.9;
-    let jpg = canvas.toDataURL("image/jpeg", q);
-    while (jpg.length/1024/1024 > 5 && q > 0.3) {
-        q -= 0.05;
-        jpg = canvas.toDataURL("image/jpeg", q);
+    // Export with compression loop to ensure <= 5MB
+    let quality = 0.92;
+    let dataUrl = canvas.toDataURL('image/jpeg', quality);
+    while ((dataUrl.length / 1024 / 1024) > 5 && quality > 0.4) {
+      quality -= 0.06;
+      dataUrl = canvas.toDataURL('image/jpeg', quality);
     }
 
-    downloadBtn.href = jpg;
-    downloadBtn.style.display = "inline-block";
-});
+    // final safety: if still too big, scale down iteratively
+    if ((dataUrl.length / 1024 / 1024) > 5) {
+      let scale = 0.95;
+      let attempts = 0;
+      while ((dataUrl.length / 1024 / 1024) > 5 && attempts < 6) {
+        attempts++;
+        const tmp = document.createElement('canvas');
+        const tw = Math.round(FINAL_W * scale);
+        const th = Math.round(FINAL_H * scale);
+        tmp.width = tw;
+        tmp.height = th;
+        const tctx = tmp.getContext('2d');
+        const img = new Image();
+        img.src = dataUrl;
+        await new Promise(res => { img.onload = res; img.onerror = res; });
+        tctx.drawImage(img, 0, 0, tw, th);
+        quality = Math.max(0.6, quality - 0.04);
+        dataUrl = tmp.toDataURL('image/jpeg', quality);
+        scale -= 0.05;
+      }
+    }
+
+    // show preview scaled down (fit to container)
+    finalImg.src = dataUrl;
+    finalWrap.style.display = 'block';
+
+    // enable download
+    download.href = dataUrl;
+    download.style.display = 'inline-block';
+    download.download = `Konarak-${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.jpg`;
+    // revoke preview object URLs to free memory
+    fileList.forEach(f => {
+      try{ URL.revokeObjectURL(f); } catch(e){}
+    });
+  }
+
+  generateBtn.addEventListener('click', () => {
+    generateBtn.disabled = true;
+    generateBtn.textContent = 'Generating...';
+    // run with small delay to let UI update
+    setTimeout(async () => {
+      try {
+        await generateCollage();
+      } catch (e) {
+        alert('Error generating collage: ' + (e && e.message ? e.message : e));
+      } finally {
+        generateBtn.disabled = false;
+        generateBtn.textContent = 'Generate Collage (2500×3500)';
+      }
+    }, 50);
+  });
+
+})();
 </script>
-
 </body>
 </html>
