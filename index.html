@@ -83,7 +83,7 @@ const downloadBtn = document.getElementById("download");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-// Show preview
+// Preview thumbnails
 filesInput.addEventListener("change", () => {
     preview.innerHTML = "";
     selected = Array.from(filesInput.files);
@@ -94,18 +94,18 @@ filesInput.addEventListener("change", () => {
     });
 });
 
-// UNIVERSAL IMAGE LOADER (works on all phones)
+// Universal image loader
 function loadImage(file) {
     return new Promise(resolve => {
-        const reader = new FileReader();
-        reader.onload = e => {
+        const rd = new FileReader();
+        rd.onload = e => {
             const img = new Image();
             img.onload = () => resolve(img);
             img.onerror = () => resolve(null);
             img.src = e.target.result;
         };
-        reader.onerror = () => resolve(null);
-        reader.readAsDataURL(file);
+        rd.onerror = () => resolve(null);
+        rd.readAsDataURL(file);
     });
 }
 
@@ -116,107 +116,127 @@ makeBtn.addEventListener("click", async () => {
         return;
     }
 
-    // FIXED FINAL SIZE
     const W = 2500;
     const H = 3500;
     const footerH = 180;
+    const border = 40; // outer border
+    const thick = 20;  // inner border
 
     canvas.width = W;
     canvas.height = H;
 
-    // Background ORANGE
+    // Background orange
     ctx.fillStyle = "#f28c2b";
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(0,0,W,H);
 
     const cols = 2;
     const rows = Math.ceil(selected.length / cols);
-
-    // GRID AREA
     const gridH = H - footerH;
 
-    // OUTER BORDER THICKNESS
-    const outerB = 40;
+    const usableW = W - border * 2;
+    const usableH = gridH - border * 2;
 
-    // AVAILABLE GRID SPACE AFTER OUTER BORDER
-    const usableW = W - outerB * 2;
-    const usableH = gridH - outerB * 2;
-
-    // CELL SIZE = fill entire block (NO EMPTY SPACE)
     const cellW = usableW / cols;
     const cellH = usableH / rows;
 
-    let index = 0;
+    let i = 0;
 
-    // DRAW IMAGES
     for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
 
-            if (index >= selected.length) break;
+        const lastRow = (r === rows - 1);
+        const odd = (selected.length % 2 === 1);
 
-            const img = await loadImage(selected[index]);
-            const x = outerB + c * cellW;
-            const y = outerB + r * cellH;
+        // If last row & odd count → stretch final image across both columns
+        if (lastRow && odd && i === selected.length - 1) {
+
+            const img = await loadImage(selected[i]);
+
+            const x = border;
+            const y = border + r * cellH;
+            const w = usableW;
+            const h = cellH;
 
             if (img) {
-                // COVER FIT
-                const scale = Math.max(cellW / img.width, cellH / img.height);
+                const scale = Math.max(w / img.width, h / img.height);
                 const newW = img.width * scale;
                 const newH = img.height * scale;
 
                 ctx.save();
                 ctx.beginPath();
-                ctx.rect(x, y, cellW, cellH);
+                ctx.rect(x, y, w, h);
                 ctx.clip();
                 ctx.drawImage(img,
-                    x + (cellW - newW) / 2,
-                    y + (cellH - newH) / 2,
+                    x + (w - newW)/2,
+                    y + (h - newH)/2,
                     newW,
                     newH
                 );
                 ctx.restore();
             }
 
-            // THICK INNER BORDER
             ctx.strokeStyle = "#d86f1b";
-            ctx.lineWidth = 20;
-            ctx.strokeRect(x + 10, y + 10, cellW - 20, cellH - 20);
+            ctx.lineWidth = thick;
+            ctx.strokeRect(x + thick/2, y + thick/2, w - thick, h - thick);
 
-            index++;
+            break;
+        }
+
+        // Normal 2-column draw
+        for (let c = 0; c < cols; c++) {
+            if (i >= selected.length) break;
+
+            const img = await loadImage(selected[i]);
+            const x = border + c * cellW;
+            const y = border + r * cellH;
+
+            if (img) {
+                const scale = Math.max(cellW / img.width, cellH / img.height);
+                const nW = img.width * scale;
+                const nH = img.height * scale;
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(x, y, cellW, cellH);
+                ctx.clip();
+                ctx.drawImage(
+                    img,
+                    x + (cellW - nW)/2,
+                    y + (cellH - nH)/2,
+                    nW, nH
+                );
+                ctx.restore();
+            }
+
+            // Inner border
+            ctx.strokeStyle = "#d86f1b";
+            ctx.lineWidth = thick;
+            ctx.strokeRect(x + thick/2, y + thick/2, cellW - thick, cellH - thick);
+
+            i++;
         }
     }
 
-    // DRAW OUTER BORDER ONLY AROUND IMAGE GRID
-    ctx.strokeStyle = "#d86f1b";
-    ctx.lineWidth = outerB;
-    ctx.strokeRect(
-        outerB / 2,
-        outerB / 2,
-        W - outerB,
-        gridH - outerB
-    );
-
-    // FOOTER
+    // Footer
     ctx.fillStyle = "#333";
-    ctx.fillRect(0, H - footerH, W, footerH);
+    ctx.fillRect(0, H-footerH, W, footerH);
 
     ctx.fillStyle = "#fff";
     ctx.textAlign = "center";
-    ctx.font = "bold 52px Arial";
-    ctx.fillText("Konarak Food & Beverages", W / 2, H - footerH / 2 - 10);
-
+    ctx.font = "bold 50px Arial";
+    ctx.fillText("Konarak Food & Beverages", W/2, H-footerH/2 - 10);
     ctx.font = "30px Arial";
-    ctx.fillText(new Date().toLocaleString(), W / 2, H - footerH / 2 + 40);
+    ctx.fillText(new Date().toLocaleString(), W/2, H-footerH/2 + 40);
 
-    // Compress to ≤ 5 MB
+    // Export under 5MB
     let q = 0.92;
-    let out = canvas.toDataURL("image/jpeg", q);
+    let output = canvas.toDataURL("image/jpeg", q);
 
-    while (out.length / 1024 / 1024 > 5 && q > 0.3) {
-        q -= 0.06;
-        out = canvas.toDataURL("image/jpeg", q);
+    while (output.length/1024/1024 > 5 && q > 0.3) {
+        q -= 0.05;
+        output = canvas.toDataURL("image/jpeg", q);
     }
 
-    downloadBtn.href = out;
+    downloadBtn.href = output;
     downloadBtn.style.display = "block";
 });
 </script>
