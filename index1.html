@@ -21,7 +21,7 @@
         border-radius: 10px;
     }
 
-    /* ⭐ Responsive Smart Grid */
+    /* Preview grid (unchanged behavior) */
     #preview {
         display: grid;
         grid-template-columns: repeat(2,1fr);
@@ -30,7 +30,6 @@
         margin-top: 15px;
     }
 
-    /* ⭐ Make full image visible always */
     #preview img {
         width: 100%;
         height: 100%;
@@ -104,13 +103,14 @@ const statusBox = document.getElementById("status");
 const ctx = canvas.getContext("2d");
 
 /*  
-    ⭐ SMART BOX SIZE RULES:
-    Small image → 1 cell (1×1)
-    Wide image  → 2 cells (2×1)
-    Large image → 4 cells (2×2)
+  Masonry rules:
+  - Small image → span = 1 (1×1)
+  - Wide image  → span = 2 (2×1)
+  - Large image → span = 2 with height multiplier 2 (2×2)
+  We'll pack into 2 columns. To reduce gaps we place larger spans first.
 */
 
-// Show thumbnails with smart-size logic
+// Preview thumbnails (unchanged visual behavior)
 filesInput.addEventListener("change", () => {
     preview.innerHTML = "";
     selected = Array.from(filesInput.files);
@@ -124,23 +124,20 @@ filesInput.addEventListener("change", () => {
         img.onload = () => {
             let spanW = 1;
             let spanH = 1;
-
             const w = img.width;
             const h = img.height;
-
             const ratio = w / h;
 
-            // ⭐ Large images
+            // Large images
             if (w > 2500 || h > 2500 || w * h > 5_000_000) {
                 spanW = 2;
                 spanH = 2;
             }
-            // ⭐ Wide images
+            // Wide images
             else if (ratio > 1.6) {
                 spanW = 2;
                 spanH = 1;
             }
-            // ⭐ Small (default stays 1×1)
 
             img.style.gridColumn = "span " + spanW;
             img.style.gridRow = "span " + spanH;
@@ -152,7 +149,7 @@ filesInput.addEventListener("change", () => {
     downloadBtn.style.display = "none";
 });
 
-// Load a file and return image
+// Utility: load file to Image object
 function loadImage(file) {
     return new Promise(resolve => {
         const reader = new FileReader();
@@ -183,9 +180,26 @@ async function preloadAll() {
     statusBox.style.display = "none";
 }
 
-// Main generate button
-makeBtn.addEventListener("click", async () => {
+// Determine classification for an image
+function classifyImage(img) {
+    const w = img.width;
+    const h = img.height;
+    const ratio = w / h;
 
+    // Large image -> 2x2
+    if (w > 2500 || h > 2500 || w * h > 5_000_000) {
+        return { span: 2, hMul: 2 };
+    }
+    // Wide -> spans 2 columns horizontally
+    if (ratio > 1.6) {
+        return { span: 2, hMul: 1 };
+    }
+    // Small / default -> single cell
+    return { span: 1, hMul: 1 };
+}
+
+// Main generate button: build masonry layout, then draw
+makeBtn.addEventListener("click", async () => {
     if (selected.length === 0) {
         alert("Upload photos first.");
         return;
@@ -198,139 +212,168 @@ makeBtn.addEventListener("click", async () => {
 
     makeBtn.innerText = "Generating...";
 
+    // Canvas base width; we keep same full-width as before (2500)
     const W = 2500;
-    const H = 3500;
     const footerH = 180;
-    const border = 40;
-    const thick = 20;
+    const border = 40; // outer margin
+    const gap = 10; // gap between column cells
+    const thick = 20; // stroke thickness around images
 
-    canvas.width = W;
-    canvas.height = H;
-
-    ctx.fillStyle = "#f28c2b";
-    ctx.fillRect(0,0,W,H);
-
+    // Usable area for images width
     const usableW = W - border * 2;
-    const usableH = (H - footerH) - border * 2;
+    const cols = 2;
+    const colW = (usableW - gap) / cols; // width of a single column
 
-    // Single full image
-    if (loadedImages.length === 1) {
-        const img = loadedImages[0];
+    // Build items array with classification and computed target widths/heights
+    const items = loadedImages.map((img, idx) => {
+        const cls = classifyImage(img);
+        const span = cls.span; // 1 or 2
+        const hMul = cls.hMul; // 1 or 2 (large images hMul=2)
 
-        const x = border;
-        const y = border;
-        const w = usableW;
-        const h = usableH;
+        // spanWidth includes gap between columns when span==2 (colW*2 + gap)
+        const spanWidth = (span === 1) ? colW : (colW * 2 + gap);
 
-        const scale = Math.min(w / img.width, h / img.height);
-        const newW = img.width * scale;
-        const newH = img.height * scale;
+        // Calculate display height when fit to spanWidth preserving aspect ratio
+        let displayH = img.height * (spanWidth / img.width);
+
+        // If large (hMul === 2) increase height to occupy two row heights (approx)
+        // We'll treat hMul as multiplier of the image's computed height.
+        displayH = displayH * hMul;
+
+        return {
+            img,
+            idx,
+            span,
+            hMul,
+            spanWidth,
+            displayH,
+            displayW: spanWidth
+        };
+    });
+
+    // Sort items: place large (hMul>1) then span=2 then span=1 to reduce gaps
+    items.sort((a, b) => {
+        // primary: hMul desc (2 first), secondary: span desc (2 before 1), tertiary: area desc
+        if (b.hMul !== a.hMul) return b.hMul - a.hMul;
+        if (b.span !== a.span) return b.span - a.span;
+        const areaA = a.img.width * a.img.height;
+        const areaB = b.img.width * b.img.height;
+        return areaB - areaA;
+    });
+
+    // Column heights tracking
+    const colHeights = new Array(cols).fill(0);
+
+    // We'll store placements: x,y,width,height,img
+    const placements = [];
+
+    // Place each item
+    for (const it of items) {
+        if (it.span === 1) {
+            // place into column with minimum height
+            let colIndex = 0;
+            let minH = colHeights[0];
+            for (let c = 1; c < cols; c++) {
+                if (colHeights[c] < minH) {
+                    minH = colHeights[c];
+                    colIndex = c;
+                }
+            }
+
+            const x = border + colIndex * (colW + gap);
+            const y = border + colHeights[colIndex];
+
+            placements.push({
+                img: it.img,
+                x,
+                y,
+                w: it.displayW,
+                h: it.displayH,
+                span: 1
+            });
+
+            // update that column height
+            colHeights[colIndex] = colHeights[colIndex] + it.displayH + gap;
+        } else {
+            // span === 2 (covers both columns)
+            // we must place at y that is >= both column heights (so no overlap)
+            const y = border + Math.max(...colHeights);
+            const x = border; // starts at leftmost
+
+            placements.push({
+                img: it.img,
+                x,
+                y,
+                w: it.displayW,
+                h: it.displayH,
+                span: 2
+            });
+
+            // update both column heights to new level (y - border + height)
+            const newColH = (y - border) + it.displayH + gap;
+            for (let c = 0; c < cols; c++) colHeights[c] = newColH;
+        }
+    }
+
+    // Compute final canvas height (tight fit)
+    const contentH = Math.max(...colHeights) + border; // bottom margin
+    const finalCanvasH = Math.ceil(contentH + footerH);
+
+    // Set canvas size now (width fixed, height dynamic)
+    canvas.width = W;
+    canvas.height = finalCanvasH;
+
+    // Draw background
+    ctx.fillStyle = "#f28c2b";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw all placements
+    for (const p of placements) {
+        // Clip to a rectangle area and draw image centered within it,
+        // keeping full image visible (no cropping). We'll fit by width (we designed width-based sizing),
+        // but if the image's height is less than the allocated height, center it vertically.
+        const destW = Math.round(p.w);
+        const destH = Math.round(p.h);
+
+        // Calculate scale to fit inside the slot (fit by width; ensure not to exceed height)
+        const scale = Math.min(destW / p.img.width, destH / p.img.height);
+        const drawW = p.img.width * scale;
+        const drawH = p.img.height * scale;
+
+        const drawX = Math.round(p.x + (destW - drawW) / 2);
+        const drawY = Math.round(p.y + (destH - drawH) / 2);
 
         ctx.save();
         ctx.beginPath();
-        ctx.rect(x, y, w, h);
+        ctx.rect(p.x, p.y, destW, destH);
         ctx.clip();
-        ctx.drawImage(img, x + (w - newW)/2, y + (h - newH)/2, newW, newH);
+        ctx.drawImage(p.img, drawX, drawY, drawW, drawH);
         ctx.restore();
 
+        // Draw stroke around the allocated cell
         ctx.strokeStyle = "#d86f1b";
         ctx.lineWidth = thick;
-        ctx.strokeRect(x + thick/2, y + thick/2, w - thick, h - thick);
-
-        finalizeOutput();
-        return;
+        ctx.strokeRect(p.x + thick/2, p.y + thick/2, destW - thick, destH - thick);
     }
 
-    // Existing collage logic unchanged
-    const cols = 2;
-    const rows = Math.ceil(loadedImages.length / cols);
-    const cellW = usableW / cols;
-    const cellH = usableH / rows;
-
-    let index = 0;
-
-    for (let r = 0; r < rows; r++) {
-        const lastRow = (r === rows - 1);
-        const odd = (loadedImages.length % 2 === 1);
-
-        if (lastRow && odd && index === loadedImages.length - 1) {
-            const img = loadedImages[index];
-
-            const x = border;
-            const y = border + r * cellH;
-            const w = usableW;
-            const h = cellH;
-
-            const scale = Math.max(w / img.width, h / img.height);
-            const nW = img.width * scale;
-            const nH = img.height * scale;
-
-            ctx.save();
-            ctx.beginPath();
-            ctx.rect(x, y, w, h);
-            ctx.clip();
-            ctx.drawImage(img, x + (w - nW)/2, y + (h - nH)/2, nW, nH);
-            ctx.restore();
-
-            ctx.strokeStyle = "#d86f1b";
-            ctx.lineWidth = thick;
-            ctx.strokeRect(x + thick/2, y + thick/2, w - thick, h - thick);
-
-            break;
-        }
-
-        for (let c = 0; c < cols; c++) {
-            if (index >= loadedImages.length) break;
-
-            const img = loadedImages[index];
-
-            const x = border + c * cellW;
-            const y = border + r * cellH;
-
-            const scale = Math.max(cellW / img.width, cellH / img.height);
-            const nW = img.width * scale;
-            const nH = img.height * scale;
-
-            ctx.save();
-            ctx.beginPath();
-            ctx.rect(x, y, cellW, cellH);
-            ctx.clip();
-            ctx.drawImage(img, x + (cellW - nW)/2, y + (cellH - nH)/2, nW, nH);
-            ctx.restore();
-
-            ctx.strokeStyle = "#d86f1b";
-            ctx.lineWidth = thick;
-            ctx.strokeRect(x + thick/2, y + thick/2, cellW - thick, cellH - thick);
-
-            index++;
-        }
-    }
-
-    finalizeOutput();
-});
-
-// Final JPEG
-function finalizeOutput() {
-
-    const W = canvas.width;
+    // Footer
     const H = canvas.height;
-    const footerH = 180;
-
     ctx.fillStyle = "#333";
-    ctx.fillRect(0, H-footerH, W, footerH);
+    ctx.fillRect(0, H - footerH, canvas.width, footerH);
 
     ctx.fillStyle = "#fff";
     ctx.textAlign = "center";
     ctx.font = "bold 50px Arial";
-    ctx.fillText("Konarak Food & Beverages", W/2, H-footerH/2 - 10);
+    ctx.fillText("Konarak Food & Beverages", canvas.width / 2, H - footerH / 2 - 10);
 
     ctx.font = "30px Arial";
-    ctx.fillText(new Date().toLocaleString(), W/2, H-footerH/2 + 40);
+    ctx.fillText(new Date().toLocaleString(), canvas.width / 2, H - footerH / 2 + 40);
 
+    // Export as JPEG, keeping the same size limit routine
     let q = 0.92;
     let output = canvas.toDataURL("image/jpeg", q);
 
-    while (output.length/1024/1024 > 5 && q > 0.3) {
+    while (output.length / 1024 / 1024 > 5 && q > 0.3) {
         q -= 0.05;
         output = canvas.toDataURL("image/jpeg", q);
     }
@@ -340,7 +383,7 @@ function finalizeOutput() {
 
     makeBtn.innerText = "Generate Collage";
     makeBtn.disabled = false;
-}
+});
 </script>
 
 </body>
