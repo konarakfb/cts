@@ -28,10 +28,11 @@
         margin-top: 15px;
     }
 
+    /* THUMBNAILS: fill the preview box (no crop) */
     #preview img {
         width: 100%;
         height: 150px;
-        object-fit: cover;
+        object-fit: fill;
         border: 8px solid #f28c2b;
         border-radius: 6px;
     }
@@ -115,7 +116,7 @@ filesInput.addEventListener("change", () => {
     downloadBtn.style.display = "none";
 });
 
-// Load image
+// Load a file and return image
 function loadImage(file) {
     return new Promise(resolve => {
         const reader = new FileReader();
@@ -128,7 +129,7 @@ function loadImage(file) {
     });
 }
 
-// Preload all
+// Preload all images
 async function preloadAll() {
     statusBox.style.display = "block";
     statusBox.innerText = "Preparing images...";
@@ -144,7 +145,7 @@ async function preloadAll() {
     statusBox.style.display = "none";
 }
 
-// Generate collage
+// Main generate button
 makeBtn.addEventListener("click", async () => {
 
     if (!selected.length) {
@@ -174,7 +175,7 @@ makeBtn.addEventListener("click", async () => {
     const usableW = W - border * 2;
     const usableH = (H - footerH) - border * 2;
 
-    // Single Image Mode
+    // SINGLE IMAGE MODE — draw stretched to fill (no crop)
     if (loadedImages.length === 1) {
         const img = loadedImages[0];
         const x = border;
@@ -182,16 +183,8 @@ makeBtn.addEventListener("click", async () => {
         const w = usableW;
         const h = usableH;
 
-        const scale = Math.min(w / img.width, h / img.height);
-        const newW = img.width * scale;
-        const newH = img.height * scale;
-
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(x, y, w, h);
-        ctx.clip();
-        ctx.drawImage(img, x + (w - newW)/2, y + (h - newH)/2, newW, newH);
-        ctx.restore();
+        // Stretch/shrink to fill entire area
+        ctx.drawImage(img, x, y, w, h);
 
         ctx.strokeStyle = "#d86f1b";
         ctx.lineWidth = thick;
@@ -201,75 +194,61 @@ makeBtn.addEventListener("click", async () => {
         return;
     }
 
-    // First (Menu) Image
+    // FIRST IMAGE IS MENU IMAGE (TOP 4 BOXES)
     const menuImg = loadedImages[0];
     const remainingImages = loadedImages.slice(1);
 
     const menuH = usableH * 0.35;
 
+    // Big menu banner — stretch to fill (no crop)
     {
         const x = border;
         const y = border;
         const w = usableW;
         const h = menuH;
 
-        const scale = Math.max(w / menuImg.width, h / menuImg.height);
-        const newW = menuImg.width * scale;
-        const newH = menuImg.height * scale;
-
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(x, y, w, h);
-        ctx.clip();
-        ctx.drawImage(menuImg, x + (w-newW)/2, y + (h-newH)/2, newW, newH);
-        ctx.restore();
+        // draw stretched to fill cell
+        ctx.drawImage(menuImg, x, y, w, h);
 
         ctx.strokeStyle = "#d86f1b";
         ctx.lineWidth = thick;
         ctx.strokeRect(x + thick/2, y + thick/2, w - thick, h - thick);
     }
 
-    // Remaining images (2 columns)
+    // Remaining images below (each cell stretched to fill)
     const cols = 2;
     const startY = border + menuH + 20;
+
     const rows = Math.ceil(remainingImages.length / cols);
     const cellH = (usableH - menuH) / rows;
     const cellW = usableW / cols;
 
-    let idx = 0;
+    let index = 0;
 
     for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
 
-            if (idx >= remainingImages.length) break;
+            if (index >= remainingImages.length) break;
 
-            const img = remainingImages[idx];
+            const img = remainingImages[index];
             const x = border + c * cellW;
             const y = startY + r * cellH;
 
-            const scale = Math.max(cellW / img.width, cellH / img.height);
-            const newW = img.width * scale;
-            const newH = img.height * scale;
-
-            ctx.save();
-            ctx.beginPath();
-            ctx.rect(x, y, cellW, cellH);
-            ctx.clip();
-            ctx.drawImage(img, x + (cellW-newW)/2, y + (cellH-newH)/2, newW, newH);
-            ctx.restore();
+            // draw stretched to fill cell (no crop)
+            ctx.drawImage(img, x, y, cellW, cellH);
 
             ctx.strokeStyle = "#d86f1b";
             ctx.lineWidth = thick;
             ctx.strokeRect(x + thick/2, y + thick/2, cellW - thick, cellH - thick);
 
-            idx++;
+            index++;
         }
     }
 
     finalizeOutput();
 });
 
-// FOOTER EXACTLY LIKE YOUR SAMPLE
+// FOOTER + LOGO + EXPORT (unchanged)
 function finalizeOutput() {
 
     const W = canvas.width;
@@ -281,39 +260,34 @@ function finalizeOutput() {
 
     logo.onload = () => {
 
-        // Footer background
         ctx.fillStyle = "#333";
-        ctx.fillRect(0, H - footerH, W, footerH);
+        ctx.fillRect(0, H-footerH, W, footerH);
 
-        // Logo sizing
+        // Draw logo left side
         const logoH = 95;
         const logoW = logo.width * (logoH / logo.height);
-
         const space = 25;
 
-        // Title
         const title = "Konarak Food & Beverages";
         ctx.font = "bold 48px Arial";
         const titleWidth = ctx.measureText(title).width;
 
         const totalWidth = logoW + space + titleWidth;
         const startX = (W - totalWidth) / 2;
+        const centerY = H - footerH / 2;
 
-        const midY = H - footerH / 2;
-
-        ctx.drawImage(logo, startX, midY - logoH/2, logoW, logoH);
+        ctx.drawImage(logo, startX, centerY - logoH / 2, logoW, logoH);
 
         ctx.fillStyle = "#fff";
         ctx.textAlign = "left";
         ctx.font = "bold 48px Arial";
-        ctx.fillText(title, startX + logoW + space, midY - 8);
+        ctx.fillText(title, startX + logoW + space, centerY - 8);
 
-        // Date
-        ctx.textAlign = "center";
         ctx.font = "30px Arial";
-        ctx.fillText(new Date().toLocaleString(), W/2, midY + 42);
+        ctx.textAlign = "center";
+        ctx.fillText(new Date().toLocaleString(), W/2, centerY + 42);
 
-        // Export
+        // Export final image
         let q = 0.92;
         let output = canvas.toDataURL("image/jpeg", q);
 
