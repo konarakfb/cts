@@ -21,16 +21,21 @@
         border-radius: 10px;
     }
 
+    /* ⭐ Responsive Smart Grid */
     #preview {
         display: grid;
         grid-template-columns: repeat(2,1fr);
+        grid-auto-rows: auto;
         gap: 10px;
         margin-top: 15px;
     }
 
+    /* ⭐ Make full image visible always */
     #preview img {
         width: 100%;
-        height: auto;
+        height: 100%;
+        object-fit: contain;
+        background: #00000020;
         border: 8px solid #f28c2b;
         border-radius: 6px;
     }
@@ -60,6 +65,15 @@
         border-radius:8px;
         font-size: 17px;
     }
+
+    #status {
+        text-align:center;
+        font-size:16px;
+        font-weight:bold;
+        margin-top:10px;
+        color:#fff;
+        display:none;
+    }
 </style>
 </head>
 
@@ -68,6 +82,9 @@
 <div class="box">
     <input id="files" type="file" accept="image/*" multiple>
     <div id="preview"></div>
+
+    <div id="status"></div>
+
     <button id="make">Generate Collage</button>
     <a id="download" download="Konarak.jpg">Download Final Image</a>
 </div>
@@ -76,56 +93,66 @@
 
 <script>
 let selected = [];
+let loadedImages = [];
+
 const filesInput = document.getElementById("files");
 const preview = document.getElementById("preview");
 const makeBtn = document.getElementById("make");
 const downloadBtn = document.getElementById("download");
 const canvas = document.getElementById("canvas");
+const statusBox = document.getElementById("status");
 const ctx = canvas.getContext("2d");
 
-// BASE64 LOGO
-const LOGO_BASE64 =
-"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeAAAAHgCAYAAABx6D+LAAAACXBIWXMAAAsTAAALEwEAmpwYAAAK"
-+"T2lDQ1BQaG90b3Nob3AgSUNDIHByb2ZpbGUAAHjanVNnVFPpFj333vRRLmSJAQglGIQEFSAhCRAmgg"
-+"WJiGloCAo0VFRSwsLC0tLS0ZGRkWFhYVVVVVZWVlbGxsXFxcVlZWdnZ2RkZGhoaGhoaEhISGRkZGRk"
-+"ZmZmZmZmYmJiYmJiYmJiYmJiX19fY2NjY2Njc3Nzc3N4eHh4eHh5eXl5eXl6enp6enqioqKjo6Ojo6"
-+"SkpKUlJSUlJiYmJiYmJiYmJiUlJSUlJSUlJSUlLS0tLS0tLS09PT09PT09PT09PX19fX19fX19fYGB"
-+"gYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGZmZmZmZmZmZmZmZmZmZmZ2dnZ2dnZ2d"
-+"nZ2dnZ2dnZ2dpaWlpaWlpaWlpaWlpaWlpaWlqampqampqampqampqampqanp6enp6enp6enp6enp6e"
-+"nqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKiqqqqqqqqqqqqqqqqqqqqqqqqq"
-+"qv///////+McxDAAAeM0lEQVR4nO2dC7iV1xbH52SZ7IySeKgjE6BKIypA0QhMDI2N0HwKFBMDQ3Aw"
-+"MjGoxCmFjY2MLBqiwo2FhZsTuxExsQ5KaBJpDkCaa7ZvbW/PnW870u2u7ZN2v37vvd7r3nvXvOec75"
-+"3TO+j1r2lLaTSTS5kaGTZJaNWRINklo1ZEk2SWjVkSTZJaNWRINklo1ZEk2SWjVkSTZJaNWRINklo1"
-+"ZEk2SWjVkSTZJaNWRINklo1ZEk2SWjVkSTZJaNWRINklo1ZEk2SWjVkSTZJaNWRINklo1ZEk2SWjVk"
-+"STZJaNWRINklo1ZEk2SWjVkSTZJaNWRINklo1ZEk2SWjVkSTZJaNWRINklo1ZEk2SWjVkSTZJaNWRIN"
-+"klo1ZEk2SWjVkSTZJaNWTJFCZnk3u+vXr19/Xr169fv37dvXt37979+/fv3799+jRo0ePHj169OjRo"
-+"0ePHj169OjRo0ePHz/8d9C0ut6uqpTXwB4HmgZof2Cgc3yG0BBtP8feY8yGNVuAwYAsYFbgGqBtKBs"
-+"uILgEFAEiNCzY6RlQC3gDOAX8BuwUTBtYCPgBeBFYLmBvMAoYCPgBuJGgZ3oR7ANuAkYF7AbuBGwbn"
-+"wPaAEUD+wJxgQ+A6ZgS2AS8D5oA+gUuAzsB+QB2AR2AO0ADYBLwH6AHIBHYBHQAdgEdgDtAA2ASAAs"
-+"xyPjdlsnHPu9LSUmNjY2ampqSkpKSkpKOjo6Ojo6am5uTk5OTl5eXk5OTlJSUlJSUnd3d3V1dXV1dX"
-+"VxcXFxcXBw8PDw8PDAwMDAwLy8vLy8vLy8vLi4uLy8vLy9/f39/f39/f398fHx8fHx8fHx8eHh4eHh"
-+"4dHR0dHR0dHR0cHBwcHBwXFxcnJycnJycnJyclJSUlJSUlJSUhISEhISENDQ0NDQ0NDAwMDAwMDAw"
-+"L29vb29vb29vbm5ubm5ubm5tbW1tbW1tbW1sbGxsbGxsbGwrKysrKysrKysqioqKioqKioqKioqKij"
-+"oekzkXe/PHQwqIoiiKBqPM8z7vXr169evXsUoG63a7XWazebzebzebzebzebzebzubg4OCqq6tLQ0N"
-+"DQ0NSUlJQUFBUVFRUVFRQUEBAQEBAQICAgICAgICAQH+/fu3bt27dvX7929e/fv3bv3r17+79Fq9VK"
-+"pVAp9M6FQqFQqFSqVSqVSqVSqVSqVSqVSqVSqaTSaTSaTSaTSaTSaTSaTSaTS6XS6XS6XS6XS6XS6X"
-+"S6XR6PR6PR6PR6PR6PR6PR6PR6PR5Op1Op1Op1Op1Op1Op1Op1Pt9vt9vt9vt9vt9vt9vt9vt9vt9n"
-+"8/GMcRxHkUql8vl8vl8vl8vl8vl8vl8vl8vl8vp9Pp9Pp9Pp9Pp9Pp9Pp9Pp9Pp9Pp9Pp9P58//T+R"
-+"+qutNQAAAABJRU5ErkJggg==";
+/*  
+    ⭐ SMART BOX SIZE RULES:
+    Small image → 1 cell (1×1)
+    Wide image  → 2 cells (2×1)
+    Large image → 4 cells (2×2)
+*/
 
-// Show preview
+// Show thumbnails with smart-size logic
 filesInput.addEventListener("change", () => {
     preview.innerHTML = "";
     selected = Array.from(filesInput.files);
+    loadedImages = [];
+    statusBox.style.display = "none";
+
     selected.forEach(file => {
-        const img = document.createElement("img");
+        const img = new Image();
         img.src = URL.createObjectURL(file);
-        preview.appendChild(img);
+
+        img.onload = () => {
+            let spanW = 1;
+            let spanH = 1;
+
+            const w = img.width;
+            const h = img.height;
+
+            const ratio = w / h;
+
+            // ⭐ Large images
+            if (w > 2500 || h > 2500 || w * h > 5_000_000) {
+                spanW = 2;
+                spanH = 2;
+            }
+            // ⭐ Wide images
+            else if (ratio > 1.6) {
+                spanW = 2;
+                spanH = 1;
+            }
+            // ⭐ Small (default stays 1×1)
+
+            img.style.gridColumn = "span " + spanW;
+            img.style.gridRow = "span " + spanH;
+
+            preview.appendChild(img);
+        };
     });
+
     downloadBtn.style.display = "none";
 });
 
-// Load image
+// Load a file and return image
 function loadImage(file) {
     return new Promise(resolve => {
         const reader = new FileReader();
@@ -138,7 +165,25 @@ function loadImage(file) {
     });
 }
 
-// Generate collage (dynamic rows)
+// Preload all images
+async function preloadAll() {
+    statusBox.style.display = "block";
+    statusBox.innerText = "Preparing images...";
+
+    loadedImages = [];
+
+    for (let i = 0; i < selected.length; i++) {
+        statusBox.innerText = `Loading ${i+1}/${selected.length}...`;
+        const img = await loadImage(selected[i]);
+        loadedImages.push(img);
+    }
+
+    statusBox.innerText = "All images loaded!";
+    await new Promise(r => setTimeout(r, 300)); 
+    statusBox.style.display = "none";
+}
+
+// Main generate button
 makeBtn.addEventListener("click", async () => {
 
     if (selected.length === 0) {
@@ -146,110 +191,142 @@ makeBtn.addEventListener("click", async () => {
         return;
     }
 
-    makeBtn.innerText = "Generating...";
+    makeBtn.innerText = "Preparing...";
     makeBtn.disabled = true;
-    downloadBtn.style.display = "none";
+
+    await preloadAll();
+
+    makeBtn.innerText = "Generating...";
 
     const W = 2500;
+    const H = 3500;
+    const footerH = 180;
     const border = 40;
     const thick = 20;
 
     canvas.width = W;
-    canvas.height = 6000;
+    canvas.height = H;
 
     ctx.fillStyle = "#f28c2b";
-    ctx.fillRect(0, 0, W, canvas.height);
+    ctx.fillRect(0,0,W,H);
 
-    let yOffset = border;
+    const usableW = W - border * 2;
+    const usableH = (H - footerH) - border * 2;
 
-    for (let i = 0; i < selected.length; ) {
+    // Single full image
+    if (loadedImages.length === 1) {
+        const img = loadedImages[0];
 
-        const lastOdd = (i === selected.length - 1);
+        const x = border;
+        const y = border;
+        const w = usableW;
+        const h = usableH;
 
-        // LAST IMAGE FULL WIDTH
-        if (lastOdd) {
-            const img = await loadImage(selected[i]);
+        const scale = Math.min(w / img.width, h / img.height);
+        const newW = img.width * scale;
+        const newH = img.height * scale;
 
-            const scale = (W - border * 2) / img.width;
-            const newW = img.width * scale;
-            const newH = img.height * scale;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x, y, w, h);
+        ctx.clip();
+        ctx.drawImage(img, x + (w - newW)/2, y + (h - newH)/2, newW, newH);
+        ctx.restore();
 
-            ctx.drawImage(img, border, yOffset, newW, newH);
+        ctx.strokeStyle = "#d86f1b";
+        ctx.lineWidth = thick;
+        ctx.strokeRect(x + thick/2, y + thick/2, w - thick, h - thick);
+
+        finalizeOutput();
+        return;
+    }
+
+    // Existing collage logic unchanged
+    const cols = 2;
+    const rows = Math.ceil(loadedImages.length / cols);
+    const cellW = usableW / cols;
+    const cellH = usableH / rows;
+
+    let index = 0;
+
+    for (let r = 0; r < rows; r++) {
+        const lastRow = (r === rows - 1);
+        const odd = (loadedImages.length % 2 === 1);
+
+        if (lastRow && odd && index === loadedImages.length - 1) {
+            const img = loadedImages[index];
+
+            const x = border;
+            const y = border + r * cellH;
+            const w = usableW;
+            const h = cellH;
+
+            const scale = Math.max(w / img.width, h / img.height);
+            const nW = img.width * scale;
+            const nH = img.height * scale;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(x, y, w, h);
+            ctx.clip();
+            ctx.drawImage(img, x + (w - nW)/2, y + (h - nH)/2, nW, nH);
+            ctx.restore();
+
             ctx.strokeStyle = "#d86f1b";
             ctx.lineWidth = thick;
-            ctx.strokeRect(border + thick/2, yOffset + thick/2, newW - thick, newH - thick);
+            ctx.strokeRect(x + thick/2, y + thick/2, w - thick, h - thick);
 
-            yOffset += newH + border;
             break;
         }
 
-        // TWO IMAGES IN ROW
-        const img1 = await loadImage(selected[i]);
-        const img2 = await loadImage(selected[i + 1]);
+        for (let c = 0; c < cols; c++) {
+            if (index >= loadedImages.length) break;
 
-        const halfW = (W - border * 3) / 2;
+            const img = loadedImages[index];
 
-        const s1 = halfW / img1.width;
-        const newH1 = img1.height * s1;
+            const x = border + c * cellW;
+            const y = border + r * cellH;
 
-        const s2 = halfW / img2.width;
-        const newH2 = img2.height * s2;
+            const scale = Math.max(cellW / img.width, cellH / img.height);
+            const nW = img.width * scale;
+            const nH = img.height * scale;
 
-        const rowH = Math.max(newH1, newH2);
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(x, y, cellW, cellH);
+            ctx.clip();
+            ctx.drawImage(img, x + (cellW - nW)/2, y + (cellH - nH)/2, nW, nH);
+            ctx.restore();
 
-        ctx.drawImage(img1, border, yOffset, halfW, newH1);
-        ctx.strokeRect(border + thick/2, yOffset + thick/2, halfW - thick, newH1 - thick);
+            ctx.strokeStyle = "#d86f1b";
+            ctx.lineWidth = thick;
+            ctx.strokeRect(x + thick/2, y + thick/2, cellW - thick, cellH - thick);
 
-        ctx.drawImage(img2, border*2 + halfW, yOffset, halfW, newH2);
-        ctx.strokeRect(border*2 + halfW + thick/2, yOffset + thick/2, halfW - thick, newH2 - thick);
-
-        yOffset += rowH + border;
-        i += 2;
+            index++;
+        }
     }
-
-    // Adjust canvas height to content + footer
-    const finalHeight = yOffset + 220;
-    const temp = ctx.getImageData(0, 0, W, finalHeight);
-    canvas.height = finalHeight;
-    ctx.putImageData(temp, 0, 0);
 
     finalizeOutput();
 });
 
-// Footer (same as your original)
+// Final JPEG
 function finalizeOutput() {
+
     const W = canvas.width;
     const H = canvas.height;
     const footerH = 180;
 
     ctx.fillStyle = "#333";
-    ctx.fillRect(0, H - footerH, W, footerH);
-
-    const logo = new Image();
-    logo.src = LOGO_BASE64;
-
-    const logoSize = 120;
-    const logoX = W/2 - 350;
-    const logoY = H - footerH + (footerH - logoSize)/2;
-
-    logo.onload = () => {
-        ctx.drawImage(logo, logoX, logoY, logoSize, logoSize);
-    };
+    ctx.fillRect(0, H-footerH, W, footerH);
 
     ctx.fillStyle = "#fff";
-    ctx.textAlign = "left";
-
+    ctx.textAlign = "center";
     ctx.font = "bold 50px Arial";
-    ctx.fillText("Konarak Food & Beverages", logoX + logoSize + 30, logoY + 55);
+    ctx.fillText("Konarak Food & Beverages", W/2, H-footerH/2 - 10);
 
     ctx.font = "30px Arial";
-    ctx.fillText(new Date().toLocaleString(), logoX + logoSize + 30, logoY + 100);
+    ctx.fillText(new Date().toLocaleString(), W/2, H-footerH/2 + 40);
 
-    exportFinal();
-}
-
-// Save output under 5MB
-function exportFinal() {
     let q = 0.92;
     let output = canvas.toDataURL("image/jpeg", q);
 
