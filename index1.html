@@ -21,7 +21,6 @@
         border-radius: 10px;
     }
 
-    /* Preview grid (unchanged behavior) */
     #preview {
         display: grid;
         grid-template-columns: repeat(2,1fr);
@@ -91,6 +90,7 @@
 <canvas id="canvas" style="display:none"></canvas>
 
 <script>
+// ---------------- CORE VARIABLES -----------------
 let selected = [];
 let loadedImages = [];
 
@@ -102,15 +102,22 @@ const canvas = document.getElementById("canvas");
 const statusBox = document.getElementById("status");
 const ctx = canvas.getContext("2d");
 
-/*  
-  Masonry rules:
-  - Small image → span = 1 (1×1)
-  - Wide image  → span = 2 (2×1)
-  - Large image → span = 2 with height multiplier 2 (2×2)
-  We'll pack into 2 columns. To reduce gaps we place larger spans first.
-*/
+// ---------------- CLASSIFY IMAGES FOR PREVIEW + CANVAS -----------------
+function classifyImage(img) {
+    const w = img.width;
+    const h = img.height;
+    const ratio = w / h;
 
-// Preview thumbnails (unchanged visual behavior)
+    if (w > 2500 || h > 2500 || (w * h) > 5_000_000) {
+        return {spanW: 2, spanH: 2};
+    }
+    if (ratio > 1.6) {
+        return {spanW: 2, spanH: 1};
+    }
+    return {spanW: 1, spanH: 1};
+}
+
+// ---------------- PREVIEW THUMBNAILS -----------------
 filesInput.addEventListener("change", () => {
     preview.innerHTML = "";
     selected = Array.from(filesInput.files);
@@ -122,26 +129,9 @@ filesInput.addEventListener("change", () => {
         img.src = URL.createObjectURL(file);
 
         img.onload = () => {
-            let spanW = 1;
-            let spanH = 1;
-            const w = img.width;
-            const h = img.height;
-            const ratio = w / h;
-
-            // Large images
-            if (w > 2500 || h > 2500 || w * h > 5_000_000) {
-                spanW = 2;
-                spanH = 2;
-            }
-            // Wide images
-            else if (ratio > 1.6) {
-                spanW = 2;
-                spanH = 1;
-            }
-
-            img.style.gridColumn = "span " + spanW;
-            img.style.gridRow = "span " + spanH;
-
+            const cls = classifyImage(img);
+            img.style.gridColumn = "span " + cls.spanW;
+            img.style.gridRow = "span " + cls.spanH;
             preview.appendChild(img);
         };
     });
@@ -149,7 +139,7 @@ filesInput.addEventListener("change", () => {
     downloadBtn.style.display = "none";
 });
 
-// Utility: load file to Image object
+// ---------------- LOAD IMAGE (PROMISE) -----------------
 function loadImage(file) {
     return new Promise(resolve => {
         const reader = new FileReader();
@@ -162,7 +152,7 @@ function loadImage(file) {
     });
 }
 
-// Preload all images
+// ---------------- PRELOAD ALL IMAGES -----------------
 async function preloadAll() {
     statusBox.style.display = "block";
     statusBox.innerText = "Preparing images...";
@@ -176,30 +166,13 @@ async function preloadAll() {
     }
 
     statusBox.innerText = "All images loaded!";
-    await new Promise(r => setTimeout(r, 300)); 
+    await new Promise(r => setTimeout(r, 300));
     statusBox.style.display = "none";
 }
 
-// Determine classification for an image
-function classifyImage(img) {
-    const w = img.width;
-    const h = img.height;
-    const ratio = w / h;
-
-    // Large image -> 2x2
-    if (w > 2500 || h > 2500 || w * h > 5_000_000) {
-        return { span: 2, hMul: 2 };
-    }
-    // Wide -> spans 2 columns horizontally
-    if (ratio > 1.6) {
-        return { span: 2, hMul: 1 };
-    }
-    // Small / default -> single cell
-    return { span: 1, hMul: 1 };
-}
-
-// Main generate button: build masonry layout, then draw
+// ---------------- GENERATE COLLAGE (MASONRY) -----------------
 makeBtn.addEventListener("click", async () => {
+
     if (selected.length === 0) {
         alert("Upload photos first.");
         return;
@@ -212,177 +185,139 @@ makeBtn.addEventListener("click", async () => {
 
     makeBtn.innerText = "Generating...";
 
-    // Canvas base width; we keep same full-width as before (2500)
-    const W = 2500;
+    const OUT_W = 2500;
+    const border = 40;
     const footerH = 180;
-    const border = 40; // outer margin
-    const gap = 10; // gap between column cells
-    const thick = 20; // stroke thickness around images
+    const thick = 20;
+    const gap = 10;
 
-    // Usable area for images width
-    const usableW = W - border * 2;
-    const cols = 2;
-    const colW = (usableW - gap) / cols; // width of a single column
+    const usableW = OUT_W - border*2;
 
-    // Build items array with classification and computed target widths/heights
-    const items = loadedImages.map((img, idx) => {
-        const cls = classifyImage(img);
-        const span = cls.span; // 1 or 2
-        const hMul = cls.hMul; // 1 or 2 (large images hMul=2)
+    const targetCell = 600;
+    let cols = Math.max(1, Math.floor(usableW / targetCell));
+    cols = Math.max(cols, 1);
 
-        // spanWidth includes gap between columns when span==2 (colW*2 + gap)
-        const spanWidth = (span === 1) ? colW : (colW * 2 + gap);
+    const cellW = usableW / cols;
 
-        // Calculate display height when fit to spanWidth preserving aspect ratio
-        let displayH = img.height * (spanWidth / img.width);
-
-        // If large (hMul === 2) increase height to occupy two row heights (approx)
-        // We'll treat hMul as multiplier of the image's computed height.
-        displayH = displayH * hMul;
-
-        return {
-            img,
-            idx,
-            span,
-            hMul,
-            spanWidth,
-            displayH,
-            displayW: spanWidth
-        };
-    });
-
-    // Sort items: place large (hMul>1) then span=2 then span=1 to reduce gaps
-    items.sort((a, b) => {
-        // primary: hMul desc (2 first), secondary: span desc (2 before 1), tertiary: area desc
-        if (b.hMul !== a.hMul) return b.hMul - a.hMul;
-        if (b.span !== a.span) return b.span - a.span;
-        const areaA = a.img.width * a.img.height;
-        const areaB = b.img.width * b.img.height;
-        return areaB - areaA;
-    });
-
-    // Column heights tracking
-    const colHeights = new Array(cols).fill(0);
-
-    // We'll store placements: x,y,width,height,img
+    const columnsHeights = new Array(cols).fill(0);
     const placements = [];
 
-    // Place each item
-    for (const it of items) {
-        if (it.span === 1) {
-            // place into column with minimum height
-            let colIndex = 0;
-            let minH = colHeights[0];
-            for (let c = 1; c < cols; c++) {
-                if (colHeights[c] < minH) {
-                    minH = colHeights[c];
-                    colIndex = c;
-                }
+    for (let i = 0; i < loadedImages.length; i++) {
+        const img = loadedImages[i];
+        const cls = classifyImage(img);
+
+        let spanW = cls.spanW;
+        let spanH = cls.spanH;
+
+        if (spanW > cols) spanW = cols;
+
+        let bestCol = 0;
+        let bestY = Infinity;
+
+        for (let c = 0; c <= cols - spanW; c++) {
+            let maxH = 0;
+            for (let k = 0; k < spanW; k++) {
+                maxH = Math.max(maxH, columnsHeights[c + k]);
             }
-
-            const x = border + colIndex * (colW + gap);
-            const y = border + colHeights[colIndex];
-
-            placements.push({
-                img: it.img,
-                x,
-                y,
-                w: it.displayW,
-                h: it.displayH,
-                span: 1
-            });
-
-            // update that column height
-            colHeights[colIndex] = colHeights[colIndex] + it.displayH + gap;
-        } else {
-            // span === 2 (covers both columns)
-            // we must place at y that is >= both column heights (so no overlap)
-            const y = border + Math.max(...colHeights);
-            const x = border; // starts at leftmost
-
-            placements.push({
-                img: it.img,
-                x,
-                y,
-                w: it.displayW,
-                h: it.displayH,
-                span: 2
-            });
-
-            // update both column heights to new level (y - border + height)
-            const newColH = (y - border) + it.displayH + gap;
-            for (let c = 0; c < cols; c++) colHeights[c] = newColH;
+            if (maxH < bestY) {
+                bestY = maxH;
+                bestCol = c;
+            }
         }
+
+        const tileW = cellW * spanW - (gap * (spanW - 1));
+        const tileH = cellW * spanH - (gap * (spanH - 1));
+
+        const x = border + bestCol * cellW + (gap/2) * bestCol;
+        const y = bestY === 0 ? 0 : bestY + gap;
+
+        const newHeightForCols = y + tileH;
+        for (let k = 0; k < spanW; k++) {
+            columnsHeights[bestCol + k] = newHeightForCols;
+        }
+
+        placements.push({
+            img, spanW, spanH,
+            x, y, tileW, tileH
+        });
     }
 
-    // Compute final canvas height (tight fit)
-    const contentH = Math.max(...colHeights) + border; // bottom margin
-    const finalCanvasH = Math.ceil(contentH + footerH);
+    const contentHeight = Math.max(...columnsHeights, 0);
 
-    // Set canvas size now (width fixed, height dynamic)
-    canvas.width = W;
-    canvas.height = finalCanvasH;
+    const canvasW = OUT_W;
+    const canvasH = Math.max(1400, Math.ceil(border + contentHeight + border + footerH));
 
-    // Draw background
+    canvas.width = canvasW;
+    canvas.height = canvasH;
+
     ctx.fillStyle = "#f28c2b";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, canvasW, canvasH);
 
-    // Draw all placements
-    for (const p of placements) {
-        // Clip to a rectangle area and draw image centered within it,
-        // keeping full image visible (no cropping). We'll fit by width (we designed width-based sizing),
-        // but if the image's height is less than the allocated height, center it vertically.
-        const destW = Math.round(p.w);
-        const destH = Math.round(p.h);
+    placements.forEach(p => {
 
-        // Calculate scale to fit inside the slot (fit by width; ensure not to exceed height)
-        const scale = Math.min(destW / p.img.width, destH / p.img.height);
-        const drawW = p.img.width * scale;
-        const drawH = p.img.height * scale;
+        const rx = Math.round(p.x);
+        const ry = Math.round(border + p.y);
+        const rw = Math.round(p.tileW);
+        const rh = Math.round(p.tileH);
 
-        const drawX = Math.round(p.x + (destW - drawW) / 2);
-        const drawY = Math.round(p.y + (destH - drawH) / 2);
+        const scale = Math.min(rw / p.img.width, rh / p.img.height);
+        const dw = p.img.width * scale;
+        const dh = p.img.height * scale;
+        const dx = rx + (rw - dw) / 2;
+        const dy = ry + (rh - dh) / 2;
 
         ctx.save();
         ctx.beginPath();
-        ctx.rect(p.x, p.y, destW, destH);
+        ctx.rect(rx, ry, rw, rh);
         ctx.clip();
-        ctx.drawImage(p.img, drawX, drawY, drawW, drawH);
+        ctx.drawImage(p.img, dx, dy, dw, dh);
         ctx.restore();
 
-        // Draw stroke around the allocated cell
         ctx.strokeStyle = "#d86f1b";
         ctx.lineWidth = thick;
-        ctx.strokeRect(p.x + thick/2, p.y + thick/2, destW - thick, destH - thick);
-    }
+        ctx.strokeRect(rx + thick/2, ry + thick/2, rw - thick, rh - thick);
+    });
 
-    // Footer
-    const H = canvas.height;
+    // ---------------- FOOTER WITH LOGO -----------------
     ctx.fillStyle = "#333";
-    ctx.fillRect(0, H - footerH, canvas.width, footerH);
+    ctx.fillRect(0, canvasH - footerH, canvasW, footerH);
 
-    ctx.fillStyle = "#fff";
-    ctx.textAlign = "center";
-    ctx.font = "bold 50px Arial";
-    ctx.fillText("Konarak Food & Beverages", canvas.width / 2, H - footerH / 2 - 10);
+    const logo = new Image();
+    logo.src = "konarak.png";
 
-    ctx.font = "30px Arial";
-    ctx.fillText(new Date().toLocaleString(), canvas.width / 2, H - footerH / 2 + 40);
+    logo.onload = function () {
+        const logoSize = 120;
+        const logoX = 80;
+        const logoY = canvasH - footerH + (footerH - logoSize) / 2;
 
-    // Export as JPEG, keeping the same size limit routine
-    let q = 0.92;
-    let output = canvas.toDataURL("image/jpeg", q);
+        ctx.drawImage(logo, logoX, logoY, logoSize, logoSize);
 
-    while (output.length / 1024 / 1024 > 5 && q > 0.3) {
-        q -= 0.05;
-        output = canvas.toDataURL("image/jpeg", q);
-    }
+        const textX = logoX + logoSize + 40;
+        const textY = canvasH - footerH / 2;
 
-    downloadBtn.href = output;
-    downloadBtn.style.display = "block";
+        ctx.fillStyle = "#fff";
+        ctx.textAlign = "left";
 
-    makeBtn.innerText = "Generate Collage";
-    makeBtn.disabled = false;
+        ctx.font = "bold 50px Arial";
+        ctx.fillText("Konarak Food & Beverages", textX, textY - 10);
+
+        ctx.font = "30px Arial";
+        ctx.fillText(new Date().toLocaleString(), textX, textY + 35);
+
+        let q = 0.92;
+        let output = canvas.toDataURL("image/jpeg", q);
+
+        while (output.length / 1024 / 1024 > 5 && q > 0.3) {
+            q -= 0.05;
+            output = canvas.toDataURL("image/jpeg", q);
+        }
+
+        downloadBtn.href = output;
+        downloadBtn.style.display = "block";
+
+        makeBtn.innerText = "Generate Collage";
+        makeBtn.disabled = false;
+    };
 });
 </script>
 
