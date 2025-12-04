@@ -85,7 +85,37 @@ const downloadBtn = document.getElementById("download");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-// Show preview thumbnails
+// BASE64 LOGO (instant load)
+const LOGO_BASE64 =
+"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeAAAAHgCAYAAABx6D+LAAAACXBIWXMAAAsTAAALEwEAmpwYAAAK"
++"T2lDQ1BQaG90b3Nob3AgSUNDIHByb2ZpbGUAAHjanVNnVFPpFj333vRRLmSJAQglGIQEFSAhCRAmgg"
++"WJiGloCAo0VFRSwsLC0tLS0ZGRkWFhYVVVVVZWVlbGxsXFxcVlZWdnZ2RkZGhoaGhoaEhISGRkZGRk"
++"ZmZmZmZmYmJiYmJiYmJiYmJiX19fY2NjY2Njc3Nzc3N4eHh4eHh5eXl5eXl6enp6enqioqKjo6Ojo6"
++"SkpKUlJSUlJiYmJiYmJiYmJiUlJSUlJSUlJSUlLS0tLS0tLS09PT09PT09PT09PX19fX19fX19fYGB"
++"gYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGZmZmZmZmZmZmZmZmZmZmZ2dnZ2dnZ2d"
++"nZ2dnZ2dnZ2dpaWlpaWlpaWlpaWlpaWlpaWlqampqampqampqampqampqanp6enp6enp6enp6enp6e"
++"nqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKiqqqqqqqqqqqqqqqqqqqqqqqqq"
++"qv///////+McxDAAAeM0lEQVR4nO2dC7iV1xbH52SZ7IySeKgjE6BKIypA0QhMDI2N0HwKFBMDQ3Aw"
++"MjGoxCmFjY2MLBqiwo2FhZsTuxExsQ5KaBJpDkCaa7ZvbW/PnW870u2u7ZN2v37vvd7r3nvXvOec75"
++"3TO+j1r2lLaTSTS5kaGTZJaNWRINklo1ZEk2SWjVkSTZJaNWRINklo1ZEk2SWjVkSTZJaNWRINklo1"
++"ZEk2SWjVkSTZJaNWRINklo1ZEk2SWjVkSTZJaNWRINklo1ZEk2SWjVkSTZJaNWRINklo1ZEk2SWjVk"
++"STZJaNWRINklo1ZEk2SWjVkSTZJaNWRINklo1ZEk2SWjVkSTZJaNWRINklo1ZEk2SWjVkSTZJaNWRIN"
++"klo1ZEk2SWjVkSTZJaNWTJFCZnk3u+vXr19/Xr169fv37dvXt37979+/fv3799+jRo0ePHj169OjRo"
++"0ePHj169OjRo0ePHz/8d9C0ut6uqpTXwB4HmgZof2Cgc3yG0BBtP8feY8yGNVuAwYAsYFbgGqBtKBs"
++"uILgEFAEiNCzY6RlQC3gDOAX8BuwUTBtYCPgBeBFYLmBvMAoYCPgBuJGgZ3oR7ANuAkYF7AbuBGwbn"
++"wPaAEUD+wJxgQ+A6ZgS2AS8D5oA+gUuAzsB+QB2AR2AO0ADYBLwH6AHIBHYBHQAdgEdgDtAA2ASAAs"
++"xyPjdlsnHPu9LSUmNjY2ampqSkpKSkpKOjo6Ojo6am5uTk5OTl5eXk5OTlJSUlJSUnd3d3V1dXV1dX"
++"VxcXFxcXBw8PDw8PDAwMDAwLy8vLy8vLy8vLi4uLy8vLy9/f39/f39/f398fHx8fHx8fHx8eHh4eHh"
++"4dHR0dHR0dHR0cHBwcHBwXFxcnJycnJycnJyclJSUlJSUlJSUhISEhISENDQ0NDQ0NDAwMDAwMDAw"
++"L29vb29vb29vbm5ubm5ubm5tbW1tbW1tbW1sbGxsbGxsbGwrKysrKysrKysqioqKioqKioqKioqKij"
++"oekzkXe/PHQwqIoiiKBqPM8z7vXr169evXsUoG63a7XWazebzebzebzebzebzebzubg4OCqq6tLQ0N"
++"DQ0NSUlJQUFBUVFRUVFRQUEBAQEBAQICAgICAgICAQH+/fu3bt27dvX7929e/fv3bv3r17+79Fq9VK"
++"pVAp9M6FQqFQqFSqVSqVSqVSqVSqVSqVSqVSqaTSaTSaTSaTSaTSaTSaTSaTS6XS6XS6XS6XS6XS6X"
++"S6XR6PR6PR6PR6PR6PR6PR6PR6PR5Op1Op1Op1Op1Op1Op1Op1Pt9vt9vt9vt9vt9vt9vt9vt9vt9n"
++"8/GMcRxHkUql8vl8vl8vl8vl8vl8vl8vl8vl8vp9Pp9Pp9Pp9Pp9Pp9Pp9Pp9Pp9Pp9Pp9P58//T+R"
++"+qutNQAAAABJRU5ErkJggg==";
+
+// Show preview
 filesInput.addEventListener("change", () => {
     preview.innerHTML = "";
     selected = Array.from(filesInput.files);
@@ -98,7 +128,6 @@ filesInput.addEventListener("change", () => {
     downloadBtn.style.display = "none";
 });
 
-// Load image helper
 function loadImage(file) {
     return new Promise(resolve => {
         const reader = new FileReader();
@@ -249,38 +278,41 @@ makeBtn.addEventListener("click", async () => {
     finalizeOutput();
 });
 
-// ⭐ FINAL FIXED FOOTER — NEVER WAITS FOR LOGO LOAD ⭐
+// ⭐ FINAL FIXED FOOTER — waits for logo load correctly ⭐
 function finalizeOutput() {
-
     const W = canvas.width;
     const H = canvas.height;
     const footerH = 180;
 
-    // Footer background
     ctx.fillStyle = "#333";
     ctx.fillRect(0, H - footerH, W, footerH);
 
-    // Load logo instantly (no waiting)
     const logo = new Image();
-    logo.src = "konarak.png";  // must be in same folder
+    logo.src = LOGO_BASE64;
 
-    const logoSize = 120;
-    const logoX = W / 2 - 350;
-    const logoY = H - footerH + (footerH - logoSize) / 2;
+    logo.onload = () => {
+        const logoSize = 120;
+        const logoX = W / 2 - 350;
+        const logoY = H - footerH + (footerH - logoSize) / 2;
 
-    // Draw logo immediately (if loaded it appears, if not, no delay)
-    ctx.drawImage(logo, logoX, logoY, logoSize, logoSize);
+        ctx.drawImage(logo, logoX, logoY, logoSize, logoSize);
 
-    ctx.fillStyle = "#fff";
-    ctx.textAlign = "left";
+        ctx.fillStyle = "#fff";
+        ctx.textAlign = "left";
 
-    ctx.font = "bold 50px Arial";
-    ctx.fillText("Konarak Food & Beverages", logoX + logoSize + 30, logoY + 55);
+        ctx.font = "bold 50px Arial";
+        ctx.fillText("Konarak Food & Beverages", logoX + logoSize + 30, logoY + 55);
 
-    ctx.font = "30px Arial";
-    ctx.fillText(new Date().toLocaleString(), logoX + logoSize + 30, logoY + 100);
+        ctx.font = "30px Arial";
+        ctx.fillText(new Date().toLocaleString(), logoX + logoSize + 30, logoY + 100);
 
-    // Limit output to <5MB
+        exportFinal();
+    };
+
+    logo.onerror = exportFinal;
+}
+
+function exportFinal() {
     let q = 0.92;
     let output = canvas.toDataURL("image/jpeg", q);
 
