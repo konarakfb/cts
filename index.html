@@ -16,7 +16,7 @@
     .box {
         max-width: 900px;
         margin: 20px auto;
-        background: #f28c2b;  /* CHANGED FROM WHITE TO ORANGE */
+        background: #f28c2b;
         padding: 15px;
         border-radius: 10px;
     }
@@ -94,7 +94,7 @@ filesInput.addEventListener("change", () => {
     });
 });
 
-// Universal image loader
+// Load image as promise
 function loadImage(file) {
     return new Promise(resolve => {
         const rd = new FileReader();
@@ -116,11 +116,14 @@ makeBtn.addEventListener("click", async () => {
         return;
     }
 
+    // Hide download button until ready
+    downloadBtn.style.display = "none";
+
     const W = 2500;
     const H = 3500;
     const footerH = 180;
-    const border = 40; 
-    const thick = 20;  
+    const border = 40;
+    const thick = 20;
 
     canvas.width = W;
     canvas.height = H;
@@ -128,46 +131,52 @@ makeBtn.addEventListener("click", async () => {
     ctx.fillStyle = "#f28c2b";
     ctx.fillRect(0,0,W,H);
 
+    const total = selected.length;
     const cols = 2;
-    const rows = Math.ceil(selected.length / cols);
+
+    let rowsCount = Math.ceil(total / cols);
+    if (total === 1) rowsCount = 1; // one image → full width row
+
     const gridH = H - footerH;
 
     const usableW = W - border * 2;
     const usableH = gridH - border * 2;
 
     const cellW = usableW / cols;
-    const cellH = usableH / rows;
+    const cellH = usableH / rowsCount;
 
-    let i = 0;
+    let index = 0;
 
-    for (let r = 0; r < rows; r++) {
+    for (let r = 0; r < rowsCount; r++) {
 
-        const lastRow = (r === rows - 1);
-        const odd = (selected.length % 2 === 1);
+        const y = border + r * cellH;
 
-        if (lastRow && odd && i === selected.length - 1) {
+        // CASE: Only one image → full width
+        if (total === 1 && r === 0) {
 
-            const img = await loadImage(selected[i]);
-
+            const img = await loadImage(selected[0]);
             const x = border;
-            const y = border + r * cellH;
             const w = usableW;
             const h = cellH;
 
             if (img) {
-                const scale = Math.max(w / img.width, h / img.height);
-                const newW = img.width * scale;
-                const newH = img.height * scale;
-
                 ctx.save();
                 ctx.beginPath();
                 ctx.rect(x, y, w, h);
                 ctx.clip();
-                ctx.drawImage(img,
+
+                const scale = Math.min(w / img.width, h / img.height);
+                const newW = img.width * scale;
+                const newH = img.height * scale;
+
+                ctx.fillStyle = "#f28c2b";
+                ctx.fillRect(x, y, w, h);
+
+                ctx.drawImage(
+                    img,
                     x + (w - newW)/2,
                     y + (h - newH)/2,
-                    newW,
-                    newH
+                    newW, newH
                 );
                 ctx.restore();
             }
@@ -175,43 +184,48 @@ makeBtn.addEventListener("click", async () => {
             ctx.strokeStyle = "#d86f1b";
             ctx.lineWidth = thick;
             ctx.strokeRect(x + thick/2, y + thick/2, w - thick, h - thick);
-
             break;
         }
 
-        for (let c = 0; c < cols; c++) {
-            if (i >= selected.length) break;
+        // NORMAL 2-COLUMN LAYOUT
+        for (let c = 0; c < 2; c++) {
+            if (index >= total) break;
 
-            const img = await loadImage(selected[i]);
+            const img = await loadImage(selected[index]);
             const x = border + c * cellW;
-            const y = border + r * cellH;
 
             if (img) {
-                const scale = Math.max(cellW / img.width, cellH / img.height);
-                const nW = img.width * scale;
-                const nH = img.height * scale;
-
                 ctx.save();
                 ctx.beginPath();
                 ctx.rect(x, y, cellW, cellH);
                 ctx.clip();
+
+                const scale = Math.min(cellW / img.width, cellH / img.height);
+                const newW = img.width * scale;
+                const newH = img.height * scale;
+
+                ctx.fillStyle = "#f28c2b";
+                ctx.fillRect(x, y, cellW, cellH);
+
                 ctx.drawImage(
                     img,
-                    x + (cellW - nW)/2,
-                    y + (cellH - nH)/2,
-                    nW, nH
+                    x + (cellW - newW)/2,
+                    y + (cellH - newH)/2,
+                    newW, newH
                 );
                 ctx.restore();
             }
 
+            // Border
             ctx.strokeStyle = "#d86f1b";
             ctx.lineWidth = thick;
             ctx.strokeRect(x + thick/2, y + thick/2, cellW - thick, cellH - thick);
 
-            i++;
+            index++;
         }
     }
 
+    // FOOTER
     ctx.fillStyle = "#333";
     ctx.fillRect(0, H-footerH, W, footerH);
 
@@ -222,6 +236,10 @@ makeBtn.addEventListener("click", async () => {
     ctx.font = "30px Arial";
     ctx.fillText(new Date().toLocaleString(), W/2, H-footerH/2 + 40);
 
+    // Wait for canvas to finish
+    await new Promise(res => setTimeout(res, 150));
+
+    // Export under 5MB
     let q = 0.92;
     let output = canvas.toDataURL("image/jpeg", q);
 
