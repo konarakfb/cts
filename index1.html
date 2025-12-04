@@ -66,9 +66,6 @@
 
 <body>
 
-<!-- Hidden footer logo -->
-<img id="logo-img" src="konarak.png" style="display:none">
-
 <div class="box">
     <input id="files" type="file" accept="image/*" multiple>
     <div id="preview"></div>
@@ -114,7 +111,7 @@ function loadImage(file) {
     });
 }
 
-// Main button
+// Generate collage
 makeBtn.addEventListener("click", async () => {
 
     if (selected.length === 0) {
@@ -141,7 +138,7 @@ makeBtn.addEventListener("click", async () => {
     const usableW = W - border * 2;
     const usableH = (H - footerH) - border * 2;
 
-    // SINGLE IMAGE
+    // SINGLE IMAGE FULL VIEW
     if (selected.length === 1) {
         const img = await loadImage(selected[0]);
 
@@ -174,7 +171,7 @@ makeBtn.addEventListener("click", async () => {
         return;
     }
 
-    // MULTIPLE IMAGE GRID
+    // MULTIPLE IMAGES GRID
     const cols = 2;
     const rows = Math.ceil(selected.length / cols);
     const cellW = usableW / cols;
@@ -252,63 +249,51 @@ makeBtn.addEventListener("click", async () => {
     finalizeOutput();
 });
 
-// FINAL FOOTER WITH LOGO (NO MORE LOADING ISSUES)
+// ⭐ FINAL FIXED FOOTER — NEVER WAITS FOR LOGO LOAD ⭐
 function finalizeOutput() {
 
     const W = canvas.width;
     const H = canvas.height;
     const footerH = 180;
 
+    // Footer background
     ctx.fillStyle = "#333";
     ctx.fillRect(0, H - footerH, W, footerH);
 
+    // Load logo instantly (no waiting)
     const logo = new Image();
-    logo.src = document.getElementById("logo-img").src;
+    logo.src = "konarak.png";  // must be in same folder
 
-    // If logo loads → draw with logo
-    logo.onload = () => {
-        drawFooter(logo);
-    };
+    const logoSize = 120;
+    const logoX = W / 2 - 350;
+    const logoY = H - footerH + (footerH - logoSize) / 2;
 
-    // If logo fails → draw without logo
-    logo.onerror = () => {
-        drawFooter(null);
-    };
+    // Draw logo immediately (if loaded it appears, if not, no delay)
+    ctx.drawImage(logo, logoX, logoY, logoSize, logoSize);
 
-    function drawFooter(logoImg) {
+    ctx.fillStyle = "#fff";
+    ctx.textAlign = "left";
 
-        const logoSize = 120;
-        const logoX = W / 2 - 350;
-        const logoY = H - footerH + (footerH - logoSize) / 2;
+    ctx.font = "bold 50px Arial";
+    ctx.fillText("Konarak Food & Beverages", logoX + logoSize + 30, logoY + 55);
 
-        if (logoImg) {
-            ctx.drawImage(logoImg, logoX, logoY, logoSize, logoSize);
-        }
+    ctx.font = "30px Arial";
+    ctx.fillText(new Date().toLocaleString(), logoX + logoSize + 30, logoY + 100);
 
-        ctx.fillStyle = "#fff";
-        ctx.textAlign = "left";
+    // Limit output to <5MB
+    let q = 0.92;
+    let output = canvas.toDataURL("image/jpeg", q);
 
-        ctx.font = "bold 50px Arial";
-        ctx.fillText("Konarak Food & Beverages", logoX + logoSize + 30, logoY + 55);
-
-        ctx.font = "30px Arial";
-        ctx.fillText(new Date().toLocaleString(), logoX + logoSize + 30, logoY + 100);
-
-        // LIMIT OUTPUT TO 5MB
-        let q = 0.92;
-        let output = canvas.toDataURL("image/jpeg", q);
-
-        while (output.length/1024/1024 > 5 && q > 0.3) {
-            q -= 0.05;
-            output = canvas.toDataURL("image/jpeg", q);
-        }
-
-        downloadBtn.href = output;
-        downloadBtn.style.display = "block";
-
-        makeBtn.innerText = "Generate Collage";
-        makeBtn.disabled = false;
+    while (output.length/1024/1024 > 5 && q > 0.3) {
+        q -= 0.05;
+        output = canvas.toDataURL("image/jpeg", q);
     }
+
+    downloadBtn.href = output;
+    downloadBtn.style.display = "block";
+
+    makeBtn.innerText = "Generate Collage";
+    makeBtn.disabled = false;
 }
 </script>
 
